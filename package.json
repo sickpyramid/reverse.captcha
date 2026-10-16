@@ -3,7 +3,7 @@
   "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Open agent authorization protocol and hosted BOT PASSPORT service",
+  "description": "reverse.captcha — open cryptographic authorization for AI agents",
   "scripts": {
     "start": "node src/server.mjs",
     "test": "node --test",

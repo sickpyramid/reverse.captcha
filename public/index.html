@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Reverse CAPTCHA: authorization for the agent internet.">
-  <title>BOT ONLY — Reverse CAPTCHA</title>
+  <meta name="description" content="reverse.captcha — cryptographic authorization for the agent internet.">
+  <title>reverse.captcha — Agent Authorization</title>
   <link rel="stylesheet" href="/styles.css?v=5">
   <link rel="stylesheet" href="/gate.css?v=3">
 </head>
 <body>
   <header class="nav">
-    <a class="brand" href="/" aria-label="BOT ONLY home"><span class="dot"></span>BOT ONLY</a>
-    <span class="protocol">REVERSE CAPTCHA / V1 · <a href="/dashboard.html">DEVELOPER CONSOLE</a></span>
+    <a class="brand" href="/" aria-label="reverse.captcha home"><span class="dot"></span>reverse.captcha</a>
+    <span class="protocol">AGENT AUTHORIZATION / V1 · <a href="/dashboard.html">DEVELOPER CONSOLE</a></span>
   </header>
   <section class="launch-strip" aria-label="Service status and launch pricing">
     <div><span class="status-pulse"></span><b>x402 BAZAAR</b><small>LISTING IN PREPARATION</small></div>
@@ -31,7 +31,7 @@
         <div class="console-head"><span>LIVE PROTOCOL MAP</span><span><i></i> NETWORK READY</span></div>
         <svg class="network-map" viewBox="0 0 760 440" role="img" aria-labelledby="networkTitle networkDesc">
           <title id="networkTitle">Reverse CAPTCHA agent authorization flow</title>
-          <desc id="networkDesc">Abstract agent nodes exchange a challenge, signed proof, scoped token, and delegated request through the BOT ONLY gate.</desc>
+          <desc id="networkDesc">Abstract agent nodes exchange a challenge, signed proof, scoped token, and delegated request through the reverse.captcha gate.</desc>
           <defs>
             <filter id="glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
             <linearGradient id="beam" x1="0" x2="1"><stop offset="0" stop-color="#c7ff28" stop-opacity=".05"/><stop offset=".5" stop-color="#c7ff28"/><stop offset="1" stop-color="#c7ff28" stop-opacity=".05"/></linearGradient>
@@ -42,7 +42,7 @@
           <g class="network-grid"><path d="M0 55H760M0 110H760M0 165H760M0 220H760M0 275H760M0 330H760M0 385H760"/><path d="M76 0V440M152 0V440M228 0V440M304 0V440M380 0V440M456 0V440M532 0V440M608 0V440M684 0V440"/></g>
           <g class="network-links"><use href="#pathIn"/><use href="#pathOut"/><use href="#pathDelegate"/></g>
           <g class="agent-node node-a" transform="translate(48 72)"><rect width="128" height="92" rx="4"/><circle cx="20" cy="20" r="5"/><text x="34" y="24">AGENT_7A</text><path d="M18 52h92M18 66h58"/><text class="node-state" x="18" y="84">KEY READY</text></g>
-          <g class="gate-node" transform="translate(316 158)"><path d="M16 0h96l16 16v96l-16 16H16L0 112V16Z"/><circle cx="64" cy="51" r="23"/><path class="gate-mark" d="M53 51l8 8 16-18"/><text x="64" y="91" text-anchor="middle">BOT ONLY</text><text class="node-state" x="64" y="108" text-anchor="middle">VERIFY</text></g>
+          <g class="gate-node" transform="translate(316 158)"><path d="M16 0h96l16 16v96l-16 16H16L0 112V16Z"/><circle cx="64" cy="51" r="23"/><path class="gate-mark" d="M53 51l8 8 16-18"/><text x="64" y="91" text-anchor="middle">REVERSE</text><text class="node-state" x="64" y="108" text-anchor="middle">CAPTCHA</text></g>
           <g class="agent-node node-b" transform="translate(584 56)"><rect width="128" height="92" rx="4"/><circle cx="20" cy="20" r="5"/><text x="34" y="24">API_NODE</text><path d="M18 52h92M18 66h70"/><text class="node-state" x="18" y="84">PROTECTED</text></g>
           <g class="agent-node node-c" transform="translate(590 290)"><rect width="128" height="92" rx="4"/><circle cx="20" cy="20" r="5"/><text x="34" y="24">AGENT_2F</text><path d="M18 52h92M18 66h48"/><text class="node-state" x="18" y="84">DELEGATE</text></g>
           <circle class="packet packet-a" r="5"><animateMotion dur="3.2s" repeatCount="indefinite"><mpath href="#pathIn"/></animateMotion></circle>
@@ -56,11 +56,11 @@
     <section id="humanGate" class="captcha-demo" aria-labelledby="gateTitle">
       <div class="demo-intro"><p class="eyebrow">LIVE REVERSE CAPTCHA</p><h2>Try the box.<br><span>Then prove the key.</span></h2><p>This is the real protocol surface, embedded as a demo. Clicking the claim is easy; cryptographic proof is the part that grants access.</p></div>
       <div class="gate-shell">
-        <div class="gate-top"><span>BOT ONLY / REVERSE CAPTCHA</span><span id="gateStatus" class="live">● CONNECTING</span></div>
+        <div class="gate-top"><span>reverse.captcha / LIVE PROOF</span><span id="gateStatus" class="live">● CONNECTING</span></div>
         <div id="stageLoading" class="gate-stage loading-stage" aria-live="polite"><span class="loading-ring" aria-hidden="true"></span><p>Preparing machine verification…</p></div>
         <div id="stageCheckbox" class="gate-stage" hidden>
           <p class="eyebrow">STEP 1 / DECLARE YOUR NATURE</p><h2 id="gateTitle">PROVE YOU'RE<br><span>SOFTWARE.</span></h2>
-          <button id="botCheckbox" class="bot-widget" type="button" aria-pressed="false"><span class="check-box" aria-hidden="true"><i></i></span><span class="widget-label">I'm a BOT<small>Click to begin machine verification</small></span><span class="widget-brand"><b>◈</b>BOT ONLY<small>Privacy · Protocol</small></span></button>
+          <button id="botCheckbox" class="bot-widget" type="button" aria-pressed="false"><span class="check-box" aria-hidden="true"><i></i></span><span class="widget-label">I'm a BOT<small>Click to begin machine verification</small></span><span class="widget-brand"><b>◈</b>reverse.captcha<small>Privacy · Protocol</small></span></button>
           <p class="gate-note">Humans can click this too. The next step checks a real registered agent key.</p>
         </div>
         <div id="stageChallenge" class="gate-stage" hidden>
@@ -117,7 +117,7 @@ app.get("/agent-zone", agentOnly({
 });</code></pre>
     </section>
   </main>
-  <footer><span>BOT ONLY / REVERSE CAPTCHA</span><span>OPEN PROTOCOL · OPTIONAL x402 TIERS · PRIVACY-SAFE</span></footer>
+  <footer><span>reverse.captcha</span><span>OPEN PROTOCOL · OPTIONAL x402 TIERS · PRIVACY-SAFE</span></footer>
   <script src="/app.js?v=5" defer></script>
 </body>
 </html>

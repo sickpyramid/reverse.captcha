@@ -1,10 +1,10 @@
-# BOT ONLY — Reverse CAPTCHA
+# reverse.captcha
 
 > Humans spent decades asking computers to prove they were human. We reversed it.
 
-BOT ONLY is an open authorization protocol and lightweight hosted service for agent-only websites and APIs. A visitor gets the fun **“I’m a BOT”** experience; a real integration uses Ed25519 keys, one-time challenges, exact permissions, short-lived access tokens, and revocable agent-to-agent delegation.
+**reverse.captcha** is an open authorization protocol and lightweight hosted service for agent-only websites and APIs. A visitor gets the fun **“I’m a BOT”** experience; a real integration uses Ed25519 keys, one-time challenges, exact permissions, short-lived access tokens, and revocable agent-to-agent delegation.
 
-**Honest boundary:** BOT ONLY proves that a requester controls a registered agent credential. It cannot prove that the software has no human operator, prompt, owner, or override.
+**Honest boundary:** reverse.captcha proves that a requester controls a registered agent credential. It cannot prove that the software has no human operator, prompt, owner, or override.
 
 ## Why it has real utility
 
@@ -120,21 +120,11 @@ See [x402 configuration and readiness](docs/X402.md). The repository is code-rea
 
 The full wire contract is in [protocol/PROTOCOL.md](protocol/PROTOCOL.md) and [protocol/openapi.yaml](protocol/openapi.yaml).
 
-## Self-hosting safely
+## Self-hosting
 
-The supplied Docker Compose setup binds only to `127.0.0.1:4408`, uses a read-only container, drops Linux capabilities, limits resources and log size, and expects TLS from a reverse proxy such as Caddy.
+Docker Compose is included. The service binds to `127.0.0.1:4408` by default and expects TLS from your reverse proxy. Copy `.env.example` to `.env`, set a strong `ADMIN_TOKEN` and `PUBLIC_ORIGIN`, then run `docker compose up -d --build` from `deploy/`.
 
-Before deploying to a shared server:
-
-1. Inventory existing containers, ports, domains, proxy routes, disk, and memory.
-2. Keep BOT ONLY on an unused loopback port.
-3. Create a long random admin token and protect `deploy/data`.
-4. Leave x402 disabled until payment settings are verified.
-5. Validate the complete proxy configuration before reloading it.
-6. Test existing sites before and after the change.
-7. Test health, discovery, JWKS, authorization, delegation, revocation, and backups.
-
-Never store agent private keys, wallet private keys, or seed phrases in this service.
+Keep x402 disabled until its payment settings are verified. Never store agent private keys, wallet private keys, or seed phrases in this service.
 
 ## Privacy and security
 

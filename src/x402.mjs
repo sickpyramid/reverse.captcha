@@ -39,7 +39,7 @@ export class X402Payments {
     const paymentRequired = {
       x402Version: 2,
       error: "PAYMENT-SIGNATURE header is required",
-      resource: { url, description: `Activate the BOT ONLY ${tier} tier`, mimeType: "application/json", serviceName: "BOT ONLY", tags: ["agents", "authorization", "privacy"] },
+      resource: { url, description: `Activate the reverse.captcha ${tier} tier`, mimeType: "application/json", serviceName: "reverse.captcha", tags: ["agents", "authorization", "privacy"] },
       accepts: [paymentRequirements],
       extensions: { bazaar: { info, schema } },
     };
