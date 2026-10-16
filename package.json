@@ -1,13 +1,13 @@
 {
   "name": "reverse-captcha",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Open agent authorization protocol and hosted BOT PASSPORT service",
   "scripts": {
     "start": "node src/server.mjs",
     "test": "node --test",
-    "check": "node --check src/server.mjs && node --check sdk/index.mjs"
+    "check": "node --check src/server.mjs && node --check src/service.mjs && node --check src/x402.mjs && node --check sdk/index.mjs"
   },
   "engines": {
     "node": ">=22"

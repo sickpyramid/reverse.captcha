@@ -45,12 +45,12 @@ export function signChallenge(canonical, privateKeyPem) {
   return sign(null, Buffer.from(canonical), createPrivateKey(privateKeyPem)).toString("base64url");
 }
 
-export async function requestAgentAccess({ origin, agentId, privateKey, method = "GET", resource, scope, fetchImpl = fetch }) {
+export async function requestAgentAccess({ origin, agentId, privateKey, method = "GET", resource, scope, delegationId, fetchImpl = fetch }) {
   const base = origin.replace(/\/$/, "");
   const challengeResponse = await fetchImpl(`${base}/v1/challenges`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ agent_id: agentId, method, resource, ...(scope ? { scope } : {}) }),
+    body: JSON.stringify({ agent_id: agentId, method, resource, ...(scope ? { scope } : {}), ...(delegationId ? { delegation_id: delegationId } : {}) }),
   });
   if (!challengeResponse.ok) throw await toProtocolError(challengeResponse, "Challenge rejected");
   const challenge = await challengeResponse.json();
@@ -61,6 +61,24 @@ export async function requestAgentAccess({ origin, agentId, privateKey, method =
   });
   if (!verifyResponse.ok) throw await toProtocolError(verifyResponse, "Verification rejected");
   return verifyResponse.json();
+}
+
+export async function createDelegation({ origin, accessToken, delegateAgentId, scope, expiresIn = 900, fetchImpl = fetch }) {
+  const response = await fetchImpl(`${origin.replace(/\/$/, "")}/v1/delegations`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+    body: JSON.stringify({ delegate_agent_id: delegateAgentId, scope, expires_in: expiresIn }),
+  });
+  if (!response.ok) throw await toProtocolError(response, "Delegation rejected");
+  return response.json();
+}
+
+export async function revokeDelegation({ origin, accessToken, delegationId, fetchImpl = fetch }) {
+  const response = await fetchImpl(`${origin.replace(/\/$/, "")}/v1/delegations/${encodeURIComponent(delegationId)}/revoke`, {
+    method: "POST", headers: { authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw await toProtocolError(response, "Delegation revocation rejected");
+  return response.json();
 }
 
 // Fetch the issuer discovery document so timing, endpoints, and algorithms can
@@ -87,12 +105,15 @@ export function verifyAccessToken(token, publicKey, { issuer, audience, method, 
   if (audience && claims.aud !== audience) throw new ReverseCaptchaError("Unexpected audience", { code: "token_audience_rejected" });
   // Leeway tolerates modest clock skew between the issuer and this verifier.
   if (!claims.exp || claims.exp + leewaySeconds <= Math.floor(now / 1000)) throw new ReverseCaptchaError("Expired access token", { code: "token_expired" });
-  if (method && claims.method !== String(method).toUpperCase()) throw new ReverseCaptchaError("Method not authorized", { code: "token_method_mismatch" });
-  if (resource) {
-    // Exact-set scope may authorize this resource even if it is not the primary.
-    const wanted = String(resource);
-    const covered = Array.isArray(claims.scope) && claims.scope.includes(`${String(method || claims.method).toUpperCase()} ${wanted}`);
-    if (claims.resource !== wanted && !covered) throw new ReverseCaptchaError("Resource not authorized", { code: "token_resource_mismatch" });
+  if (method || resource) {
+    const wantedMethod = String(method || claims.method).toUpperCase();
+    const wantedResource = String(resource || claims.resource).split(/[?#]/, 1)[0];
+    const primary = claims.method === wantedMethod && claims.resource === wantedResource;
+    const scoped = Array.isArray(claims.scope) && claims.scope.includes(`${wantedMethod} ${wantedResource}`);
+    if (!primary && !scoped) {
+      if (claims.resource === wantedResource) throw new ReverseCaptchaError("Method not authorized", { code: "token_method_mismatch" });
+      throw new ReverseCaptchaError("Resource not authorized", { code: "token_resource_mismatch" });
+    }
   }
   return claims;
 }

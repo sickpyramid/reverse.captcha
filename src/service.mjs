@@ -10,6 +10,7 @@ import {
 } from "./crypto.mjs";
 import { ErrorCode, reject } from "./errors.mjs";
 import { publicMetrics } from "./store.mjs";
+import { publicTiers, tierFor } from "./tiers.mjs";
 
 const normalizeMethod = (value) => {
   const method = String(value || "GET").toUpperCase();
@@ -109,7 +110,7 @@ export class ReverseCaptchaService {
   keyFor(kid) {
     if (!kid) return this.activeKey;
     const key = this.keyring.byKid.get(kid);
-    if (!key) return this.activeKey;
+    if (!key) return null;
     if (key.status === "revoked") return null;
     return key;
   }
@@ -129,6 +130,7 @@ export class ReverseCaptchaService {
       name: String(name),
       public_key,
       capabilities: Array.isArray(capabilities) ? capabilities.map(String).slice(0, 20) : [],
+      tier: existing?.tier || "free",
       status: "active",
       created_at: existing?.created_at ?? now.toISOString(),
       updated_at: now.toISOString(),
@@ -148,6 +150,7 @@ export class ReverseCaptchaService {
       name: agent.name,
       capabilities: agent.capabilities,
       status: agent.status,
+      tier: agent.tier || "free",
       iat,
     }, this.privateKey, { typ: "bot-passport+jwt", kid: this.keyId });
   }
@@ -158,16 +161,28 @@ export class ReverseCaptchaService {
       name: agent.name,
       capabilities: agent.capabilities,
       status: agent.status,
+      tier: agent.tier || "free",
       created_at: agent.created_at,
     };
   }
 
-  async createChallenge({ agent_id, method, resource, scope }, now = new Date()) {
+  async createChallenge({ agent_id, method, resource, scope, delegation_id }, now = new Date()) {
     const agent = this.store.state.agents[String(agent_id)];
     if (!agent || agent.status !== "active") {
       this.store.increment("rejected", now);
       await this.store.persist();
       throw reject(agent ? ErrorCode.AGENT_INACTIVE : ErrorCode.UNKNOWN_AGENT, "Unknown or inactive agent");
+    }
+    const requestedScope = normalizeScope(scope);
+    const tier = tierFor(agent.tier);
+    if (requestedScope.length > tier.scope_limit) throw reject(ErrorCode.TOO_MANY_SCOPES, `${tier.id} tier is limited to ${tier.scope_limit} scope entries`);
+    let delegation;
+    if (delegation_id) {
+      delegation = this.store.state.delegations[String(delegation_id)];
+      if (!delegation || delegation.delegate_agent_id !== agent.id) throw reject(ErrorCode.UNKNOWN_DELEGATION, "Unknown delegation");
+      if (delegation.revoked_at || Date.parse(delegation.expires_at) <= now.getTime()) throw reject(ErrorCode.DELEGATION_REVOKED, "Delegation is revoked or expired");
+      const wanted = requestedScope.length ? requestedScope : [`${normalizeMethod(method)} ${normalizeResource(resource)}`];
+      if (wanted.some((pair) => !delegation.scope.includes(pair))) throw reject(ErrorCode.DELEGATION_SCOPE_REJECTED, "Requested access exceeds delegated scope");
     }
     const challenge = {
       id: `ch_${randomId()}`,
@@ -177,7 +192,8 @@ export class ReverseCaptchaService {
       resource: normalizeResource(resource),
       // Optional exact-set scope. Empty when unused so the canonical string for
       // a plain single-resource challenge stays byte-for-byte identical to v0.1.
-      scope: normalizeScope(scope),
+      scope: requestedScope,
+      delegation_id: delegation?.id || null,
       created_at: now.toISOString(),
       expires_at: new Date(now.getTime() + this.challengeTtlSeconds * 1000).toISOString(),
       used_at: null,
@@ -201,6 +217,10 @@ export class ReverseCaptchaService {
     if (Date.parse(challenge.expires_at) < now.getTime()) return rejectProof(ErrorCode.CHALLENGE_EXPIRED, "Challenge expired");
     const agent = this.store.state.agents[challenge.agent_id];
     if (!agent || agent.status !== "active") return rejectProof(ErrorCode.AGENT_INACTIVE, "Agent is inactive");
+    const delegation = challenge.delegation_id ? this.store.state.delegations[challenge.delegation_id] : null;
+    if (challenge.delegation_id && (!delegation || delegation.revoked_at || Date.parse(delegation.expires_at) <= now.getTime())) {
+      return rejectProof(ErrorCode.DELEGATION_REVOKED, "Delegation is revoked or expired");
+    }
     let valid = false;
     try {
       valid = verifyAgentSignature(canonicalChallenge(challenge), signature, agent.public_key);
@@ -210,7 +230,9 @@ export class ReverseCaptchaService {
     if (!valid) return rejectProof(ErrorCode.SIGNATURE_REJECTED, "Signature rejected");
     challenge.used_at = now.toISOString();
     const iat = Math.floor(now.getTime() / 1000);
-    const expiresIn = this.tokenTtlSeconds;
+    const tier = tierFor(agent.tier);
+    const delegationSeconds = delegation ? Math.max(1, Math.floor((Date.parse(delegation.expires_at) - now.getTime()) / 1000)) : Infinity;
+    const expiresIn = Math.min(this.tokenTtlSeconds, tier.token_ttl_seconds, delegationSeconds);
     const token = signCompact({
       iss: this.issuer,
       sub: agent.id,
@@ -225,6 +247,8 @@ export class ReverseCaptchaService {
       iat,
       exp: iat + expiresIn,
       jti: `at_${randomId(12)}`,
+      tier: tier.id,
+      ...(delegation ? { delegation_id: delegation.id, delegated_by: delegation.delegator_agent_id } : {}),
     }, this.activeKey.privateKey, { typ: "at+jwt", kid: this.activeKey.kid });
     this.store.increment("verified", now);
     this.store.increment("tokens_issued", now);
@@ -239,24 +263,89 @@ export class ReverseCaptchaService {
     // resolves to null and is refused outright.
     const header = decodeHeader(token);
     const key = this.keyFor(header?.kid);
-    if (!key) throw reject(ErrorCode.TOKEN_ISSUER_REJECTED, "Token signing key has been revoked");
+    if (!key) throw reject(ErrorCode.TOKEN_ISSUER_REJECTED, "Token signing key is unknown or revoked");
     const { payload } = verifyCompact(token, key.publicKey);
     const nowSeconds = Math.floor(now.getTime() / 1000);
     // Enforce token type: an access token must be `at+jwt`. This blocks a BOT
     // PASSPORT (typ=bot-passport+jwt) from ever being replayed as an access token.
     if (header.typ !== "at+jwt") throw reject(ErrorCode.TOKEN_TYPE_REJECTED, "Token type rejected");
-    if (payload.iss !== this.issuer || payload.aud !== this.audience) throw reject(ErrorCode.TOKEN_ISSUER_REJECTED, "Token issuer or audience rejected");
+    if (payload.iss !== this.issuer) throw reject(ErrorCode.TOKEN_ISSUER_REJECTED, "Token issuer rejected");
+    if (payload.aud !== this.audience) throw reject(ErrorCode.TOKEN_AUDIENCE_REJECTED, "Token audience rejected");
     // Leeway tolerates modest clock skew between issuer and resource server.
     if (!payload.exp || payload.exp + this.leewaySeconds <= nowSeconds) throw reject(ErrorCode.TOKEN_EXPIRED, "Token expired");
-    if (method && payload.method !== normalizeMethod(method)) throw reject(ErrorCode.TOKEN_METHOD_MISMATCH, "Token method mismatch");
-    if (resource) {
-      const wanted = normalizeResource(resource);
-      const covered = Array.isArray(payload.scope) && payload.scope.includes(`${payload.method} ${wanted}`);
-      if (payload.resource !== wanted && !covered) throw reject(ErrorCode.TOKEN_RESOURCE_MISMATCH, "Token resource mismatch");
+    if (method || resource) {
+      const wantedMethod = normalizeMethod(method || payload.method);
+      const wantedResource = normalizeResource(resource || payload.resource);
+      const primary = payload.method === wantedMethod && payload.resource === wantedResource;
+      const scoped = Array.isArray(payload.scope) && payload.scope.includes(`${wantedMethod} ${wantedResource}`);
+      if (!primary && !scoped) {
+        if (payload.resource === wantedResource) throw reject(ErrorCode.TOKEN_METHOD_MISMATCH, "Token method mismatch");
+        throw reject(ErrorCode.TOKEN_RESOURCE_MISMATCH, "Token resource mismatch");
+      }
     }
     const agent = this.store.state.agents[payload.sub];
     if (!agent || agent.status !== "active") throw reject(ErrorCode.AGENT_INACTIVE, "Agent is inactive");
+    if (payload.delegation_id) {
+      const delegation = this.store.state.delegations[payload.delegation_id];
+      if (!delegation || delegation.revoked_at || Date.parse(delegation.expires_at) <= now.getTime()) throw reject(ErrorCode.DELEGATION_REVOKED, "Delegation is revoked or expired");
+    }
     return payload;
+  }
+
+  async createDelegation(parentToken, { delegate_agent_id, scope, expires_in = 900 }, now = new Date()) {
+    const parent = this.inspectAccessToken(parentToken, { now });
+    const delegator = this.store.state.agents[parent.sub];
+    const tier = tierFor(delegator.tier);
+    if (!tier.active_delegation_limit) throw reject(ErrorCode.DELEGATION_NOT_ALLOWED, "Delegation requires a paid Agent or Pro tier");
+    const delegate = this.store.state.agents[String(delegate_agent_id)];
+    if (!delegate || delegate.status !== "active") throw reject(ErrorCode.UNKNOWN_AGENT, "Unknown or inactive delegate agent");
+    const normalized = normalizeScope(scope);
+    if (!normalized.length) throw reject(ErrorCode.INVALID_SCOPE, "Delegation requires at least one exact scope entry");
+    const parentScope = new Set(Array.isArray(parent.scope) ? parent.scope : [`${parent.method} ${parent.resource}`]);
+    if (normalized.some((pair) => !parentScope.has(pair))) throw reject(ErrorCode.DELEGATION_SCOPE_REJECTED, "Delegated scope must be a subset of the caller token");
+    const active = Object.values(this.store.state.delegations).filter((item) => item.delegator_agent_id === parent.sub && !item.revoked_at && Date.parse(item.expires_at) > now.getTime());
+    if (active.length >= tier.active_delegation_limit) throw reject(ErrorCode.DELEGATION_NOT_ALLOWED, `${tier.id} tier active delegation limit reached`);
+    const seconds = Math.min(Math.max(60, Number(expires_in) || 900), 86_400, parent.exp - Math.floor(now.getTime() / 1000));
+    if (seconds < 1) throw reject(ErrorCode.TOKEN_EXPIRED, "Parent token expires too soon to delegate");
+    const delegation = {
+      id: `dlg_${randomId(12)}`, delegator_agent_id: parent.sub, delegate_agent_id: delegate.id,
+      scope: normalized, created_at: now.toISOString(), expires_at: new Date(now.getTime() + seconds * 1000).toISOString(), revoked_at: null,
+    };
+    this.store.state.delegations[delegation.id] = delegation;
+    this.store.increment("delegations_created", now);
+    await this.store.persist();
+    return delegation;
+  }
+
+  async revokeDelegation(parentToken, delegationId, now = new Date()) {
+    const parent = this.inspectAccessToken(parentToken, { now });
+    const delegation = this.store.state.delegations[String(delegationId)];
+    if (!delegation || delegation.delegator_agent_id !== parent.sub) throw reject(ErrorCode.UNKNOWN_DELEGATION, "Unknown delegation");
+    delegation.revoked_at ||= now.toISOString();
+    await this.store.persist();
+    return { id: delegation.id, revoked_at: delegation.revoked_at };
+  }
+
+  async activateTier(agentId, tierId, payment, now = new Date()) {
+    const agent = this.assertTierActivation(agentId, tierId);
+    const tier = tierFor(tierId);
+    agent.tier = tier.id;
+    agent.updated_at = now.toISOString();
+    const paymentId = `pay_${randomId(12)}`;
+    this.store.state.payments[paymentId] = { id: paymentId, agent_id: agent.id, tier: tier.id, transaction: payment.transaction, network: payment.network, created_at: now.toISOString() };
+    this.store.increment("paid_tier_activations", now);
+    await this.store.persist();
+    return { agent_id: agent.id, tier: tier.id, status: "active", payment: { transaction: payment.transaction, network: payment.network } };
+  }
+
+  assertTierActivation(agentId, tierId) {
+    const tier = tierFor(tierId);
+    if (!tier?.paid) throw reject(ErrorCode.INVALID_TIER, "Only Agent and Pro are paid tiers");
+    const agent = this.store.state.agents[String(agentId)];
+    if (!agent || agent.status !== "active") throw reject(ErrorCode.UNKNOWN_AGENT, "Unknown or inactive agent");
+    const rank = { free: 0, agent: 1, pro: 2 };
+    if (rank[agent.tier || "free"] >= rank[tier.id]) throw reject(ErrorCode.INVALID_TIER, `Agent already has ${agent.tier || "free"} tier or higher`);
+    return agent;
   }
 
   metrics(now = new Date()) {
@@ -273,6 +362,7 @@ export class ReverseCaptchaService {
       generated_at: now.toISOString(),
       summary: this.metrics(now),
       agents: Object.values(this.store.state.agents).map((agent) => this.publicAgent(agent)),
+      active_delegations: Object.values(this.store.state.delegations).filter((item) => !item.revoked_at && Date.parse(item.expires_at) > now.getTime()).length,
       hourly,
       retained_data: ["agent identity records", "unexpired challenges", "hourly aggregate counters for 30 days"],
       excluded_data: ["IP addresses", "user agents", "request bodies", "raw signatures", "individual access logs"],
@@ -285,6 +375,8 @@ export class ReverseCaptchaService {
       protocol: "reverse-captcha/v1",
       challenge_endpoint: `${this.issuer}/v1/challenges`,
       verification_endpoint: `${this.issuer}/v1/verify`,
+      delegation_endpoint: `${this.issuer}/v1/delegations`,
+      tiers_endpoint: `${this.issuer}/v1/tiers`,
       jwks_uri: `${this.issuer}/.well-known/jwks.json`,
       passport_type: "bot-passport+jwt",
       // Agent-discoverable timing and algorithm parameters. These were previously
@@ -299,6 +391,7 @@ export class ReverseCaptchaService {
       scope_supported: true,
       scope_mode: "exact",
       scope_limit: "Scopes are exact METHOD+resource pairs. Wildcards and path prefixes are not honored.",
+      tiers: publicTiers(),
       registration_endpoint: `${this.issuer}/v1/admin/agents`,
       registration_note: "Registration is operator-authorized: it requires the admin bearer token. Agents cannot self-register.",
       claim_limit: "Authorization proves control of a registered agent key. It does not prove the absence of human direction or control.",

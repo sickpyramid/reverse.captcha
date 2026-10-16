@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
-const freshState = () => ({ agents: {}, challenges: {}, metrics: {} });
+const freshState = () => ({ agents: {}, challenges: {}, delegations: {}, payments: {}, metrics: {} });
 
 export class JsonStore {
   constructor(path) {
@@ -41,6 +41,9 @@ export class JsonStore {
       const expired = Date.parse(challenge.expires_at) < nowMs;
       const oldUsed = challenge.used_at && Date.parse(challenge.used_at) < nowMs - 3_600_000;
       if (expired || oldUsed) delete this.state.challenges[id];
+    }
+    for (const [id, delegation] of Object.entries(this.state.delegations)) {
+      if (Date.parse(delegation.expires_at) < nowMs - 86_400_000) delete this.state.delegations[id];
     }
     const cutoff = nowMs - 30 * 86_400_000;
     for (const hour of Object.keys(this.state.metrics)) {

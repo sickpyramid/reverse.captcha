@@ -110,19 +110,20 @@ test("a BOT PASSPORT cannot be replayed as an access token (typ enforcement)", a
 test("scoped tokens authorize every named resource and nothing else", async () => {
   const { service } = await fixture();
   const { identity, agent } = await registeredAgent(service);
+  await service.activateTier(agent.id, "agent", { transaction: "0xtest", network: "eip155:8453" });
   const challenge = await service.createChallenge({
     agent_id: agent.id,
     method: "GET",
     resource: "/v1/a",
     scope: [
       { method: "GET", resource: "/v1/a" },
-      { method: "GET", resource: "/v1/b" },
+      { method: "POST", resource: "/v1/b" },
       { method: "GET", resource: "/v1/a" }, // duplicate collapses
     ],
   });
   const access = await service.verifyChallenge({ challenge_id: challenge.id, signature: signChallenge(challenge.canonical, identity.privateKey) });
   service.inspectAccessToken(access.access_token, { method: "GET", resource: "/v1/a" });
-  service.inspectAccessToken(access.access_token, { method: "GET", resource: "/v1/b" });
+  service.inspectAccessToken(access.access_token, { method: "POST", resource: "/v1/b" });
   assert.throws(() => service.inspectAccessToken(access.access_token, { method: "GET", resource: "/v1/c" }), (e) => e.code === ErrorCode.TOKEN_RESOURCE_MISMATCH);
 });
 
@@ -182,6 +183,17 @@ test("key revocation: a revoked key's tokens are refused, not re-verified agains
     { typ: "at+jwt", kid: "compromised" },
   );
   assert.throws(() => service.inspectAccessToken(revokedToken, { method: "GET", resource: "/p" }), (e) => e.code === ErrorCode.TOKEN_ISSUER_REJECTED);
+});
+
+test("an unknown kid is rejected instead of silently falling back to the active key", async () => {
+  const { service, keys } = await fixture();
+  const { agent } = await registeredAgent(service);
+  const token = signCompact(
+    { iss: "https://issuer.test", sub: agent.id, aud: "reverse-captcha-protected-service", method: "GET", resource: "/p", scope: "agent:access", iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 300 },
+    keys.privateKey,
+    { typ: "at+jwt", kid: "attacker-chosen-kid" },
+  );
+  assert.throws(() => service.inspectAccessToken(token), (error) => error.code === ErrorCode.TOKEN_ISSUER_REJECTED);
 });
 
 test("SDK surfaces structured error codes instead of bare status text", async () => {

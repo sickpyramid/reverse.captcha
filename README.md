@@ -1,81 +1,152 @@
-# BOT ONLY / Reverse CAPTCHA
+# BOT ONLY — Reverse CAPTCHA
 
-A lightweight open protocol and optional hosted issuer for agent-only websites and APIs.
+> Humans spent decades asking computers to prove they were human. We reversed it.
 
-Reverse CAPTCHA verifies control of an approved Ed25519 agent credential. It does not and cannot prove that a human is absent from the control loop.
+BOT ONLY is an open authorization protocol and lightweight hosted service for agent-only websites and APIs. A visitor gets the fun **“I’m a BOT”** experience; a real integration uses Ed25519 keys, one-time challenges, exact permissions, short-lived access tokens, and revocable agent-to-agent delegation.
 
-## MVP contents
+**Honest boundary:** BOT ONLY proves that a requester controls a registered agent credential. It cannot prove that the software has no human operator, prompt, owner, or override.
 
-- Ed25519 agent identities and signed BOT PASSPORTS
-- One-time, short-lived challenge-response bound to HTTP method and resource
-- Short-lived EdDSA access tokens with offline verification
-- Dependency-free JavaScript client and Express-compatible middleware
-- Issuer discovery and JWKS endpoints
-- Public humorous reverse-CAPTCHA page with live aggregate metrics
-- Visitor-facing Reverse CAPTCHA scan that demonstrates BOT PASSPORT failure, then allows entry to the public site in clearly labeled human mode
-- Private developer console showing approved BOT PASSPORT identities, aggregate issuer activity, and the privacy contract
-- Admin-authorized registration endpoint
-- Privacy-safe hourly counters; no IP, user-agent, request-body, or raw-signature retention
-- Hardened loopback-only Docker Compose deployment for a shared VPS
+## Why it has real utility
 
-Token ownership is deliberately separate and optional. Wallets and balances are not part of authentication.
+- Protect API routes for approved agents without shipping shared API secrets.
+- Give each agent a stable public-key identity and signed BOT PASSPORT.
+- Bind access to an exact HTTP method and normalized resource.
+- Let one agent authorize another agent without sharing its private key or master token.
+- Revoke a delegation and invalidate delegated tokens immediately at the issuer.
+- Verify signed access tokens locally using the issuer JWKS.
+- Offer optional paid hosted tiers through x402 v2 while keeping identity separate from payment.
+- Publish aggregate service health without retaining visitor IPs, user agents, raw signatures, or access logs.
 
-## Run locally
+## Five-minute local demo
 
-Requires Node.js 22 or newer.
+Requires Node.js 22 or newer. There are no runtime npm dependencies.
 
 ```powershell
+git clone https://github.com/sickpyramid/Bot-Only.git
+cd Bot-Only
+Copy-Item .env.example .env
 $env:ADMIN_TOKEN = "replace-with-a-long-random-development-secret"
 $env:PUBLIC_ORIGIN = "http://127.0.0.1:4408"
-node src/server.mjs
+npm test
+npm start
 ```
 
-Then open `http://127.0.0.1:4408` and check `http://127.0.0.1:4408/healthz`.
+Open `http://127.0.0.1:4408`. Humans see the reverse CAPTCHA work in public, fail the machine proof honestly, and can choose **Open public site anyway**. The protected demo API never treats that button as authorization.
 
-## Register and call from an agent
+## How agent authorization works
 
-Generate the key pair on the agent machine using `createAgentIdentity()` from `sdk/index.mjs`. Submit only its `publicKey` to the operator-protected registration endpoint:
+1. The agent generates an Ed25519 key pair locally.
+2. An operator registers only its public key.
+3. The agent requests a one-time challenge bound to a method and resource.
+4. The agent signs the exact canonical challenge.
+5. The issuer verifies the proof and returns a short-lived `at+jwt` access token.
+6. The protected service validates the signature, issuer, audience, expiry, identity status, method, and resource.
 
 ```js
 import { createAgentIdentity, requestAgentAccess } from "./sdk/index.mjs";
 
-const identity = createAgentIdentity(); // store privateKey securely on the agent host
+const identity = createAgentIdentity(); // keep privateKey on the agent host
 
-// Operator registers identity.publicKey once and returns agent.id.
+// The operator registers identity.publicKey once and returns agent.id.
 const access = await requestAgentAccess({
   origin: "https://reversecaptcha.example.com",
   agentId: "bot_...",
   privateKey: identity.privateKey,
   method: "GET",
-  resource: "/v1/demo/agent-only"
+  resource: "/v1/demo/agent-only",
 });
 
 const response = await fetch("https://reversecaptcha.example.com/v1/demo/agent-only", {
-  headers: { authorization: `Bearer ${access.access_token}` }
+  headers: { authorization: `Bearer ${access.access_token}` },
 });
 ```
 
-See `protocol/PROTOCOL.md` for the wire format and security boundary, and `protocol/openapi.yaml` for the HTTP surface.
+See [Agent quickstart](docs/AGENT_QUICKSTART.md) for registration, delegation, revocation, and adaptation examples.
 
-## Safe Singapore VPS deployment
+## Agent-to-agent delegation
 
-Do not deploy until the current host is audited. Re-check running containers, Compose projects, public listeners, available memory/disk, and the active Caddy configuration. Pick an unused loopback port and verify existing sites both before and after deployment.
+A paid Agent or Pro identity can create a short-lived delegation whose exact scope is a subset of its own token. The delegate then signs a fresh challenge with the delegate’s own registered key. This preserves attribution and avoids handing a child agent the parent’s private key or bearer token.
 
-The supplied Compose file expects `/opt/reverse-captcha` and binds only `127.0.0.1:4408`. Create `deploy/.env` from `.env.example` using a random admin token, create `deploy/data` owned by container UID 1000, then build and start only this Compose project.
+```js
+import { createDelegation, requestAgentAccess } from "./sdk/index.mjs";
 
-Add a dedicated domain route based on `deploy/Caddyfile.example`, validate the complete active Caddy configuration with a disposable validator container, back up the active file, then reload without restarting unrelated containers. Confirm:
+const grant = await createDelegation({
+  origin,
+  accessToken: parentToken,
+  delegateAgentId: "bot_child...",
+  scope: [{ method: "GET", resource: "/jobs/42" }],
+  expiresIn: 600,
+});
 
-- container health and zero unexpected restarts;
-- local `/healthz`, discovery, JWKS, and public metrics;
-- public apex HTTPS, `www` redirect, security headers, and assets;
-- every pre-existing production domain still returns its prior healthy response.
+const childAccess = await requestAgentAccess({
+  origin,
+  agentId: "bot_child...",
+  privateKey: childPrivateKey,
+  method: "GET",
+  resource: "/jobs/42",
+  delegationId: grant.id,
+});
+```
 
-Issuer keys and state live only in `deploy/data`. Back that directory up with restrictive permissions. Never place agent private keys there.
+## Tiers and x402
 
-## Current limitations before broader production use
+| Tier | Exact scopes/token | Active delegations | Token TTL ceiling |
+|---|---:|---:|---:|
+| Free | 1 | 0 | 5 min |
+| Agent | 8 | 5 | 15 min |
+| Pro | 32 | 50 | 30 min |
 
-- Registration is operator-controlled but has no multi-user dashboard or audit workflow yet.
-- Issuer key rotation and revocation propagation need a versioned key lifecycle.
-- Horizontal replicas need a transactional shared challenge store.
-- Edge rate limiting must be configured in Caddy or an upstream service.
-- Exact-resource binding is intentionally strict; wildcard policy should be designed explicitly, not inferred.
+Paid hosted tiers use x402 v2: HTTP 402, canonical `PAYMENT-REQUIRED`, client `PAYMENT-SIGNATURE`, facilitator verification and settlement, and Bazaar discovery metadata. Payment is disabled by default until the operator supplies a reviewed facilitator, CAIP-2 network, asset, receiving wallet, and atomic-unit prices. Self-hosting remains MIT licensed and is never token-gated.
+
+See [x402 configuration and readiness](docs/X402.md). The repository is code-ready for configuration, but a live Bazaar listing is **not** complete until real payment settings and an end-to-end settlement are verified.
+
+## HTTP surface
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /.well-known/reverse-captcha` | Machine-readable protocol discovery |
+| `GET /.well-known/jwks.json` | Issuer verification keys |
+| `POST /v1/admin/agents` | Operator-authorized public-key registration |
+| `POST /v1/challenges` | Create a one-time agent proof challenge |
+| `POST /v1/verify` | Verify proof and mint an access token |
+| `POST /v1/delegations` | Create a narrowed, expiring delegation |
+| `POST /v1/delegations/:id/revoke` | Revoke a delegation |
+| `GET /v1/tiers` | Read tier limits and payment availability |
+| `POST /v1/paid/tiers/:tier` | x402-paid hosted tier activation |
+| `GET /v1/metrics/public` | Privacy-safe rolling aggregates |
+| `GET /v1/admin/dashboard` | Private operator dashboard data |
+
+The full wire contract is in [protocol/PROTOCOL.md](protocol/PROTOCOL.md) and [protocol/openapi.yaml](protocol/openapi.yaml).
+
+## Self-hosting safely
+
+The supplied Docker Compose setup binds only to `127.0.0.1:4408`, uses a read-only container, drops Linux capabilities, limits resources and log size, and expects TLS from a reverse proxy such as Caddy.
+
+Before deploying to a shared server:
+
+1. Inventory existing containers, ports, domains, proxy routes, disk, and memory.
+2. Keep BOT ONLY on an unused loopback port.
+3. Create a long random admin token and protect `deploy/data`.
+4. Leave x402 disabled until payment settings are verified.
+5. Validate the complete proxy configuration before reloading it.
+6. Test existing sites before and after the change.
+7. Test health, discovery, JWKS, authorization, delegation, revocation, and backups.
+
+Never store agent private keys, wallet private keys, or seed phrases in this service.
+
+## Privacy and security
+
+The built-in rate limiter is process-wide and retains no IP address. Public metrics are hourly aggregates. The store retains agent public identities, short-lived challenges, revocable delegation grants, minimal settlement references, and 30 days of aggregate counters. See [SECURITY.md](SECURITY.md) for the boundary and reporting guidance.
+
+## Development
+
+```powershell
+npm test
+npm run check
+```
+
+CI runs both commands on Node 22. Contributions must preserve exact scope matching, one-time challenges, delegate key proof, immediate delegation revocation, and the separation between identity, human control, and payment.
+
+## License
+
+MIT. Use the hosted issuer, embed the SDK, or adapt and self-host the protocol.

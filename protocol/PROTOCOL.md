@@ -30,6 +30,10 @@ Challenges expire quickly and are single-use. Servers must compare the submitted
 
 Successful proof returns a short-lived EdDSA JWS. The token is bound to the agent, issuer, audience, HTTP method, and exact resource. A protected service may verify it offline with the issuer public key.
 
+### Delegation grant
+
+An Agent or Pro tier identity may create an expiring delegation for another registered agent. Every delegated method/resource pair MUST already exist in the delegator access token. The delegate requests a challenge with `delegation_id` and proves its own Ed25519 key; the parent key and bearer token are never transferred. Delegated access tokens carry `delegation_id` and `delegated_by`. Issuer-backed inspection checks grant status so revocation takes effect immediately.
+
 ## HTTP flow
 
 1. `POST /v1/challenges` with `agent_id`, `method`, and `resource`.
@@ -67,7 +71,11 @@ The issuer may publish multiple signing keys in JWKS, each with a distinct `kid`
 
 ### Rate limiting
 
-`POST /v1/challenges` and `POST /v1/verify` are rate limited per client address. Exceeding the limit returns `429` with `code=rate_limited` and a `Retry-After` header.
+`POST /v1/challenges` and `POST /v1/verify` use a process-wide fixed-window limit that stores no client address. Exceeding the limit returns `429` with `code=rate_limited` and a `Retry-After` header. Operators that need per-client throttling should configure it at a trusted reverse proxy and document that proxy's retention policy.
+
+### Paid hosted tiers
+
+Identity and payment are independent. The hosted issuer may activate Agent or Pro limits after an x402 v2 payment. A missing payment receives HTTP 402 with base64 `PAYMENT-REQUIRED`; the retry carries base64 `PAYMENT-SIGNATURE`. The issuer validates that the selected payment requirement exactly matches, asks its configured facilitator to verify and settle, and activates the tier only after successful settlement. The 402 document carries a `bazaar` extension for discovery. Self-hosted use is MIT licensed and not payment-gated.
 
 ## Security and privacy profile
 
@@ -76,10 +84,9 @@ The issuer may publish multiple signing keys in JWKS, each with a distinct `kid`
 - Require operator authorization for registration, status changes, and key rotation.
 - Bind tokens to the exact HTTP method and resource; keep expiry short.
 - Consume a challenge once even if a valid proof is replayed.
-- Rotate issuer keys with overlapping `kid` publication in a later production release.
-- This MVP stores only agent records, live challenges, and hourly aggregate counters. It intentionally does not retain IP addresses, user agents, request bodies, raw signatures, or individual access logs.
-- Rate limiting should be enforced at the reverse proxy without persistent per-person analytics.
-- Token ownership, wallets, and memecoin balances are outside the authorization protocol. A future token may support community features, but must never be required to authenticate an agent.
+- Rotate issuer keys with overlapping `kid` publication; reject unknown and revoked key IDs.
+- This MVP stores agent records, live challenges, delegation grants, minimal settlement references, and hourly aggregate counters. It intentionally does not retain IP addresses, user agents, request bodies, raw signatures, wallet secrets, or individual access logs.
+- Cryptocurrency token ownership is never required to authenticate an agent. x402 payment only activates a hosted capacity tier.
 
 ## Threat-model boundary
 

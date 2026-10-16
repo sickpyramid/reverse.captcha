@@ -65,6 +65,9 @@ paths:
                     properties:
                       method: { type: string }
                       resource: { type: string }
+                delegation_id:
+                  type: string
+                  description: Optional active grant. The requesting agent must be its delegate and may only request a subset.
       responses:
         '201': { description: Canonical challenge to sign }
         '400': { $ref: '#/components/responses/Rejected' }
@@ -100,11 +103,86 @@ paths:
       summary: Read aggregate privacy-safe counters for the last 24 hours
       responses:
         '200': { description: Aggregate counters without IP or user-agent data }
+  /v1/delegations:
+    post:
+      summary: Delegate an exact subset of the caller's authority to another registered agent
+      security: [{ agentBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [delegate_agent_id, scope]
+              properties:
+                delegate_agent_id: { type: string }
+                expires_in: { type: integer, minimum: 60, maximum: 86400, default: 900 }
+                scope:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [method, resource]
+                    properties:
+                      method: { type: string }
+                      resource: { type: string }
+      responses:
+        '201': { description: Revocable delegation grant }
+        '401': { $ref: '#/components/responses/Rejected' }
+        '403': { $ref: '#/components/responses/Rejected' }
+  /v1/delegations/{id}/revoke:
+    post:
+      summary: Revoke a delegation created by the caller
+      security: [{ agentBearer: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Revocation timestamp }
+  /v1/tiers:
+    get:
+      summary: List tier limits, prices, and whether x402 is enabled
+      responses:
+        '200': { description: Public tier catalog }
+  /v1/paid/tiers/{tier}:
+    post:
+      summary: Activate a paid hosted tier with x402 v2
+      parameters:
+        - in: path
+          name: tier
+          required: true
+          schema: { type: string, enum: [agent, pro] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent_id]
+              properties:
+                agent_id: { type: string }
+      responses:
+        '200': { description: Tier activated after settlement }
+        '402':
+          description: x402 payment required or rejected
+          headers:
+            PAYMENT-REQUIRED:
+              schema: { type: string }
+              description: Base64-encoded x402 v2 PaymentRequired object with Bazaar metadata.
+            PAYMENT-RESPONSE:
+              schema: { type: string }
+              description: Base64-encoded settlement result on success.
 components:
   securitySchemes:
     adminBearer:
       type: http
       scheme: bearer
+    agentBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: at+jwt
   responses:
     Rejected:
       description: Machine-readable refusal. `code` is the stable reason, `error` a coarse legacy bucket, `retryable` whether the same call may succeed later.

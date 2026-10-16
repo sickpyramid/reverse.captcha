@@ -6,6 +6,8 @@ import { createSigningKeys, safeSecretEquals } from "./crypto.mjs";
 import { ErrorCode, ProtocolError, isProtocolError, reject } from "./errors.mjs";
 import { ReverseCaptchaService } from "./service.mjs";
 import { JsonStore } from "./store.mjs";
+import { publicTiers } from "./tiers.mjs";
+import { X402Payments } from "./x402.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const dataDir = resolve(process.env.DATA_DIR || join(root, "data"));
@@ -36,11 +38,19 @@ const service = new ReverseCaptchaService({
   leewaySeconds: Number(process.env.CLOCK_SKEW_LEEWAY_SECONDS || 30),
   audience: process.env.TOKEN_AUDIENCE || "reverse-captcha-protected-service",
 });
+const x402 = new X402Payments({
+  enabled: process.env.X402_ENABLED === "true",
+  facilitatorUrl: process.env.X402_FACILITATOR_URL,
+  network: process.env.X402_NETWORK,
+  asset: process.env.X402_ASSET,
+  payTo: process.env.X402_PAY_TO,
+  prices: { agent: process.env.X402_AGENT_AMOUNT, pro: process.env.X402_PRO_AMOUNT },
+});
 const mime = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml" };
 
-// Edge rate limiter. Keyed by client IP with a fixed window. Only the two
-// unauthenticated POST endpoints are limited, so a spammer cannot force disk
-// writes or CPU verification. Disabled when RATE_LIMIT_PER_MINUTE is 0.
+// Privacy-safe process-wide limiter. It deliberately stores no IP address or
+// fingerprint. Deployments needing per-client limits should add them at a
+// trusted reverse proxy and disclose that proxy's retention policy.
 const rateLimitPerMinute = Number(process.env.RATE_LIMIT_PER_MINUTE ?? 600);
 const rateWindows = new Map();
 function checkRate(key) {
@@ -60,7 +70,7 @@ function checkRate(key) {
     throw reject(ErrorCode.RATE_LIMITED, "Too many requests; retry later", { retryAfter });
   }
 }
-const clientKey = (request) => request.socket.remoteAddress || "unknown";
+const clientKey = () => "global";
 
 function send(response, status, body, headers = {}) {
   const payload = typeof body === "string" ? body : JSON.stringify(body);
@@ -113,7 +123,14 @@ const routes = new Map([
   ["GET /.well-known/jwks.json", async () => service.jwks()],
   ["GET /v1/metrics/public", async () => service.metrics()],
   ["GET /healthz", async () => ({ ok: true, protocol: "reverse-captcha/v1" })],
+  ["GET /v1/tiers", async () => ({ payment_protocol: "x402-v2", payment_enabled: x402.enabled, tiers: publicTiers(x402.prices) })],
 ]);
+
+const bearer = (request) => {
+  const authorization = request.headers.authorization || "";
+  if (!authorization.startsWith("Bearer ")) throw reject(ErrorCode.AUTHORIZATION_REQUIRED, "Bearer access token required");
+  return authorization.slice(7);
+};
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url, issuer);
@@ -135,6 +152,25 @@ const server = createServer(async (request, response) => {
     if (method === "POST" && url.pathname === "/v1/verify") {
       checkRate(clientKey(request));
       return send(response, 200, await service.verifyChallenge(await body(request)));
+    }
+    if (method === "POST" && url.pathname === "/v1/delegations") {
+      return send(response, 201, await service.createDelegation(bearer(request), await body(request)));
+    }
+    const revokeMatch = url.pathname.match(/^\/v1\/delegations\/([^/]+)\/revoke$/);
+    if (method === "POST" && revokeMatch) {
+      return send(response, 200, await service.revokeDelegation(bearer(request), decodeURIComponent(revokeMatch[1])));
+    }
+    const tierMatch = url.pathname.match(/^\/v1\/paid\/tiers\/(agent|pro)$/);
+    if (method === "POST" && tierMatch) {
+      const tier = tierMatch[1];
+      const target = await body(request);
+      service.assertTierActivation(target.agent_id, tier);
+      const payment = x402.requirement({ tier, url: `${issuer}${url.pathname}` });
+      const paymentSignature = request.headers["payment-signature"];
+      if (!paymentSignature) return send(response, 402, payment.paymentRequired, { "payment-required": payment.header });
+      const settlement = await x402.authorize({ tier, url: `${issuer}${url.pathname}`, paymentSignature });
+      const result = await service.activateTier(target.agent_id, tier, settlement);
+      return send(response, 200, result, { "payment-response": Buffer.from(JSON.stringify(settlement)).toString("base64") });
     }
     if (method === "GET" && url.pathname === "/v1/demo/agent-only") {
       const authorization = request.headers.authorization || "";

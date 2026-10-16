@@ -15,6 +15,8 @@ export const ErrorCode = Object.freeze({
   INVALID_PUBLIC_KEY: "invalid_public_key",
   INVALID_SCOPE: "invalid_scope",
   TOO_MANY_SCOPES: "too_many_scopes",
+  INVALID_TIER: "invalid_tier",
+  PAYMENT_NOT_CONFIGURED: "payment_not_configured",
 
   // 401 — authentication is required or the credential is not usable
   AUTHORIZATION_REQUIRED: "authorization_required",
@@ -33,6 +35,12 @@ export const ErrorCode = Object.freeze({
   TOKEN_METHOD_MISMATCH: "token_method_mismatch",
   TOKEN_RESOURCE_MISMATCH: "token_resource_mismatch",
   IDENTITY_COLLISION: "identity_collision",
+  DELEGATION_NOT_ALLOWED: "delegation_not_allowed",
+  DELEGATION_SCOPE_REJECTED: "delegation_scope_rejected",
+  UNKNOWN_DELEGATION: "unknown_delegation",
+  DELEGATION_REVOKED: "delegation_revoked",
+  PAYMENT_REQUIRED: "payment_required",
+  PAYMENT_REJECTED: "payment_rejected",
 
   // 409 — registration conflict
   AGENT_EXISTS: "agent_exists",
@@ -55,6 +63,7 @@ const STATUS_BY_CODE = new Map([
   [ErrorCode.INVALID_PUBLIC_KEY, 400],
   [ErrorCode.INVALID_SCOPE, 400],
   [ErrorCode.TOO_MANY_SCOPES, 400],
+  [ErrorCode.INVALID_TIER, 400],
   [ErrorCode.AUTHORIZATION_REQUIRED, 401],
   [ErrorCode.TOKEN_EXPIRED, 401],
   [ErrorCode.TOKEN_TYPE_REJECTED, 401],
@@ -69,6 +78,13 @@ const STATUS_BY_CODE = new Map([
   [ErrorCode.TOKEN_METHOD_MISMATCH, 403],
   [ErrorCode.TOKEN_RESOURCE_MISMATCH, 403],
   [ErrorCode.IDENTITY_COLLISION, 403],
+  [ErrorCode.DELEGATION_NOT_ALLOWED, 403],
+  [ErrorCode.DELEGATION_SCOPE_REJECTED, 403],
+  [ErrorCode.UNKNOWN_DELEGATION, 403],
+  [ErrorCode.DELEGATION_REVOKED, 403],
+  [ErrorCode.PAYMENT_REQUIRED, 402],
+  [ErrorCode.PAYMENT_REJECTED, 402],
+  [ErrorCode.PAYMENT_NOT_CONFIGURED, 503],
   [ErrorCode.AGENT_EXISTS, 409],
   [ErrorCode.RATE_LIMITED, 429],
   [ErrorCode.INTERNAL_ERROR, 500],
@@ -80,11 +96,13 @@ const STATUS_BY_CODE = new Map([
 const BUCKET_BY_STATUS = new Map([
   [400, "request_rejected"],
   [401, "reverse_captcha_required"],
+  [402, "payment_required"],
   [403, "request_rejected"],
   [409, "request_rejected"],
   [413, "request_rejected"],
   [429, "rate_limited"],
   [500, "internal_error"],
+  [503, "service_unavailable"],
 ]);
 
 // Codes where a well-behaved agent may retry the same call later (after the

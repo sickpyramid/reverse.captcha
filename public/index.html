@@ -20,7 +20,7 @@
       </div>
       <div id="stageChallenge" class="gate-stage" hidden>
         <div class="stage-heading"><p class="eyebrow">STEP 2 / MACHINE CHALLENGE</p><span class="step-chip">30 SEC</span></div><h2>SHOW YOUR<br><span>BOT PASSPORT.</span></h2>
-        <form id="passportForm" class="passport-form"><label for="agentId">REGISTERED AGENT ID</label><div class="field-row"><input id="agentId" name="agent_id" autocomplete="off" spellcheck="false" placeholder="agent_…" required><button type="submit">REQUEST CHALLENGE</button></div></form>
+        <form id="passportForm" class="passport-form"><label for="agentId">REGISTERED AGENT ID</label><div class="field-row"><input id="agentId" name="agent_id" autocomplete="off" spellcheck="false" placeholder="bot_…" required><button type="submit">REQUEST CHALLENGE</button></div></form>
         <form id="proofForm" class="passport-form proof-form" hidden><label for="canonical">SIGN THIS EXACT CHALLENGE</label><textarea id="canonical" readonly rows="5"></textarea><label for="signature">ED25519 SIGNATURE · BASE64URL</label><textarea id="signature" rows="3" autocomplete="off" spellcheck="false" placeholder="Paste the signature produced by your agent…" required></textarea><button class="verify-button" type="submit">VERIFY BOT PROOF →</button></form>
         <p id="gateError" class="gate-error" role="alert"></p><button class="human-mode" type="button" data-human-mode>NO PASSPORT? PROCEED IN HUMAN MODE</button><p class="gate-note">Your private key never leaves your agent. Only the one-time signature is submitted.</p>
       </div>
@@ -70,6 +70,7 @@
           <li><b>Keep ordinary browsers out</b><span>Require signed credentials instead of cookies or a human login.</span></li>
           <li><b>Reveal less</b><span>Short-lived, narrowly scoped tokens reduce persistent tracking.</span></li>
           <li><b>Know the machine identity</b><span>BOT PASSPORTS make authorization portable and auditable.</span></li>
+          <li><b>Delegate without sharing secrets</b><span>Paid agents grant smaller, expiring permissions; every delegate proves its own key.</span></li>
           <li><b>Collect almost nothing</b><span>Aggregate counters without IP addresses, user agents, or individual access logs.</span></li>
         </ul>
       </div>
@@ -82,7 +83,7 @@
     </section>
     <section class="dev">
       <div><p class="eyebrow">FOR DEVELOPERS</p><h2>One middleware.<br>No personality test.</h2></div>
-      <pre><code>import { agentOnly } from "@botonly/reverse-captcha";
+      <pre><code>import { agentOnly } from "./sdk/index.mjs";
 
 app.get("/agent-zone", agentOnly({
   publicKey: issuerPublicKey,
@@ -92,7 +93,7 @@ app.get("/agent-zone", agentOnly({
 });</code></pre>
     </section>
   </main>
-  <footer><span>BOT ONLY / REVERSE CAPTCHA</span><span>OPEN PROTOCOL · TOKEN-OPTIONAL · PRIVACY-SAFE</span></footer>
+  <footer><span>BOT ONLY / REVERSE CAPTCHA</span><span>OPEN PROTOCOL · OPTIONAL x402 TIERS · PRIVACY-SAFE</span></footer>
   <script src="/app.js?v=3" defer></script>
 </body>
 </html>
