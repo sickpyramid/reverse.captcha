@@ -1,0 +1,170 @@
+openapi: 3.1.0
+info:
+  title: Reverse CAPTCHA
+  version: 0.1.0
+  description: Cryptographic authorization for registered agent identities. This does not prove absence of human control.
+servers:
+  - url: https://reversecaptcha.example.com
+paths:
+  /.well-known/reverse-captcha:
+    get:
+      summary: Discover issuer endpoints, timing, algorithms, and scope support
+      responses:
+        '200':
+          description: Discovery document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discovery'
+  /.well-known/jwks.json:
+    get:
+      summary: Read issuer Ed25519 verification keys
+      responses:
+        '200': { description: JSON Web Key Set }
+  /v1/admin/agents:
+    post:
+      summary: Register or update an approved agent public key
+      security: [{ adminBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, public_key]
+              properties:
+                name: { type: string, maxLength: 80 }
+                public_key: { type: string, description: PEM encoded Ed25519 public key }
+                capabilities: { type: array, maxItems: 20, items: { type: string } }
+      responses:
+        '201': { description: Agent and signed BOT PASSPORT }
+        '401': { description: Admin authorization required }
+  /v1/challenges:
+    post:
+      summary: Create a short-lived, resource-bound challenge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent_id, method, resource]
+              properties:
+                agent_id: { type: string }
+                method: { type: string }
+                resource:
+                  type: string
+                  description: Canonicalized before binding (slashes collapsed, . and .. resolved, query and fragment stripped).
+                scope:
+                  type: array
+                  maxItems: 32
+                  description: Optional exact-set of METHOD+resource pairs the token should authorize. No wildcards or prefixes.
+                  items:
+                    type: object
+                    required: [method, resource]
+                    properties:
+                      method: { type: string }
+                      resource: { type: string }
+      responses:
+        '201': { description: Canonical challenge to sign }
+        '400': { $ref: '#/components/responses/Rejected' }
+        '403': { $ref: '#/components/responses/Rejected' }
+        '429': { $ref: '#/components/responses/Rejected' }
+  /v1/admin/dashboard:
+    get:
+      summary: Read the private developer dashboard data
+      security: [{ adminBearer: [] }]
+      responses:
+        '200': { description: Agents, aggregate metrics, and privacy contract }
+        '401': { description: Admin authorization required }
+  /v1/verify:
+    post:
+      summary: Verify proof and issue a short-lived access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challenge_id, signature]
+              properties:
+                challenge_id: { type: string }
+                signature: { type: string, description: Base64url Ed25519 signature }
+      responses:
+        '200': { description: Bearer access token }
+        '400': { $ref: '#/components/responses/Rejected' }
+        '403': { $ref: '#/components/responses/Rejected' }
+        '429': { $ref: '#/components/responses/Rejected' }
+  /v1/metrics/public:
+    get:
+      summary: Read aggregate privacy-safe counters for the last 24 hours
+      responses:
+        '200': { description: Aggregate counters without IP or user-agent data }
+components:
+  securitySchemes:
+    adminBearer:
+      type: http
+      scheme: bearer
+  responses:
+    Rejected:
+      description: Machine-readable refusal. `code` is the stable reason, `error` a coarse legacy bucket, `retryable` whether the same call may succeed later.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: Present on 429 responses.
+        WWW-Authenticate:
+          schema: { type: string }
+          description: Present on 401 responses; points back at the discovery document.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required: [error, code, message, retryable]
+      properties:
+        error: { type: string, description: Coarse legacy bucket, e.g. request_rejected. }
+        code:
+          type: string
+          description: Stable machine-readable reason.
+          enum:
+            - invalid_request
+            - invalid_json
+            - invalid_resource
+            - invalid_method
+            - invalid_scope
+            - unknown_agent
+            - agent_inactive
+            - unknown_challenge
+            - challenge_already_used
+            - challenge_expired
+            - signature_rejected
+            - token_expired
+            - token_type_rejected
+            - token_issuer_rejected
+            - token_method_mismatch
+            - token_resource_mismatch
+            - rate_limited
+            - internal_error
+        message: { type: string }
+        retryable: { type: boolean }
+        details: {}
+    Discovery:
+      type: object
+      properties:
+        issuer: { type: string }
+        protocol: { type: string, example: reverse-captcha/v1 }
+        challenge_endpoint: { type: string, format: uri }
+        verification_endpoint: { type: string, format: uri }
+        jwks_uri: { type: string, format: uri }
+        registration_endpoint: { type: string, format: uri }
+        challenge_ttl_seconds: { type: integer, example: 30 }
+        token_ttl_seconds: { type: integer, example: 300 }
+        clock_skew_leeway_seconds: { type: integer, example: 30 }
+        algorithms_supported: { type: array, items: { type: string }, example: [EdDSA] }
+        access_token_typ: { type: string, example: at+jwt }
+        passport_typ: { type: string, example: bot-passport+jwt }
+        scope_supported: { type: boolean }
+        scope_mode: { type: string, example: exact }
+        claim_limit: { type: string }

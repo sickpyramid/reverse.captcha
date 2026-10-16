@@ -1,0 +1,38 @@
+services:
+  reverse-captcha:
+    build:
+      context: ..
+    container_name: reverse-captcha
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4408
+      DATA_DIR: /app/data
+    ports:
+      - "127.0.0.1:4408:4408"
+    volumes:
+      - ./data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=8m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 80
+    mem_limit: 96m
+    cpus: 0.20
+    networks:
+      - web
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+networks:
+  web:
+    external: true
+    name: launch-factory_default

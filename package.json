@@ -1,0 +1,16 @@
+{
+  "name": "reverse-captcha",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Open agent authorization protocol and hosted BOT PASSPORT service",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test",
+    "check": "node --check src/server.mjs && node --check sdk/index.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT"
+}

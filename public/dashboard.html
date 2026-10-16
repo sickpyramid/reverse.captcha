@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Developer Console — Reverse CAPTCHA</title>
+  <link rel="stylesheet" href="/dashboard.css">
+</head>
+<body>
+  <header><a href="/">← BOT ONLY</a><span>DEVELOPER CONSOLE / PRIVATE</span></header>
+  <main>
+    <section id="gate" class="gate">
+      <p class="label">OPERATOR AUTHENTICATION</p>
+      <h1>Show your<br>human credentials.</h1>
+      <form id="login">
+        <label for="token">Admin token</label>
+        <div><input id="token" type="password" autocomplete="off" required><button>UNLOCK</button></div>
+        <p id="error" role="alert"></p>
+      </form>
+    </section>
+    <section id="console" class="console" hidden>
+      <div class="heading"><div><p class="label">LIVE ISSUER STATE</p><h1>Machine room.</h1></div><button id="lock">LOCK</button></div>
+      <div class="cards">
+        <article><strong id="agentCount">0</strong><span>ACTIVE AGENTS</span></article>
+        <article><strong id="passes">0</strong><span>24H PASSES</span></article>
+        <article><strong id="rejects">0</strong><span>24H REJECTIONS</span></article>
+        <article><strong id="challenges">0</strong><span>24H CHALLENGES</span></article>
+      </div>
+      <div class="grid">
+        <section><h2>BOT PASSPORTS</h2><div id="agents" class="agents"></div></section>
+        <section><h2>PRIVACY CONTRACT</h2><p class="good">RETAINED</p><ul id="retained"></ul><p class="bad">NEVER COLLECTED</p><ul id="excluded"></ul></section>
+      </div>
+      <p id="updated" class="updated"></p>
+    </section>
+  </main>
+  <script src="/dashboard.js" defer></script>
+</body>
+</html>
