@@ -1,0 +1,33 @@
+.stats-disclosure {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 5vw;
+  background: var(--ink);
+  color: #9ba093;
+  font: 9px Consolas, monospace;
+  letter-spacing: 1.2px;
+}
+
+.stats-disclosure span::before {
+  content: "●";
+  color: var(--acid);
+  margin-right: 8px;
+}
+
+.stats-disclosure a {
+  color: var(--acid);
+  text-decoration: none;
+}
+
+.stats strong {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 760px) {
+  .stats-disclosure {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+}

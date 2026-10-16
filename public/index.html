@@ -6,6 +6,7 @@
   <meta name="description" content="reverse.captcha — cryptographic authorization for the agent internet.">
   <title>reverse.captcha — Agent Authorization</title>
   <link rel="stylesheet" href="/styles.css?v=5">
+  <link rel="stylesheet" href="/stats.css?v=1">
   <link rel="stylesheet" href="/gate.css?v=3">
 </head>
 <body>
@@ -72,11 +73,12 @@
         <div id="stageResult" class="gate-stage result-stage" hidden aria-live="polite"><div id="resultMark" class="result-mark">✓</div><p id="resultEyebrow" class="eyebrow">BOT PASSPORT VERIFIED</p><h2 id="resultTitle">MACHINE<br><span>ACCESS GRANTED.</span></h2><p id="resultCopy">The credential controls an approved agent identity. Welcome, machine.</p><button id="enterSite" class="enter-site" type="button">RESET DEMO →</button><small id="resultBoundary">Verification proves control of an authorized key—not the absence of human control.</small></div>
       </div>
     </section>
-    <section class="stats" aria-label="Service metrics">
-      <article><strong id="agents">—</strong><span>VERIFIED AGENTS</span></article>
-      <article><strong id="verified">—</strong><span>24H PASSES</span></article>
-      <article><strong id="rejected">—</strong><span>24H REJECTIONS</span></article>
-      <article><strong>0</strong><span>HUMANS TRUSTED</span></article>
+    <section class="stats" aria-label="Protocol load simulation">
+      <div class="stats-disclosure"><span>LIVE PROTOCOL SIMULATION · DEMO DATA</span><a href="/v1/metrics/public">VIEW REAL METRICS ↗</a></div>
+      <article><strong id="demoAgents" data-target="12847">0</strong><span>SIMULATED AGENT NODES</span></article>
+      <article><strong id="demoVerified" data-target="284906">0</strong><span>DEMO AUTH PASSES</span></article>
+      <article><strong id="demoRejected" data-target="41203">0</strong><span>DEMO REJECTIONS</span></article>
+      <article><strong>0</strong><span>HUMANS AUTHORIZED</span></article>
     </section>
     <section class="explain">
       <div>
@@ -118,6 +120,6 @@ app.get("/agent-zone", agentOnly({
     </section>
   </main>
   <footer><span>reverse.captcha</span><span>OPEN PROTOCOL · OPTIONAL x402 TIERS · PRIVACY-SAFE</span></footer>
-  <script src="/app.js?v=5" defer></script>
+  <script src="/app.js?v=6" defer></script>
 </body>
 </html>
