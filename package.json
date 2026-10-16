@@ -1,6 +1,6 @@
 {
   "name": "reverse-captcha",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Open agent authorization protocol and hosted BOT PASSPORT service",

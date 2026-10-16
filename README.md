@@ -98,6 +98,8 @@ const childAccess = await requestAgentAccess({
 
 Paid hosted tiers use x402 v2: HTTP 402, canonical `PAYMENT-REQUIRED`, client `PAYMENT-SIGNATURE`, facilitator verification and settlement, and Bazaar discovery metadata. Payment is disabled by default until the operator supplies a reviewed facilitator, CAIP-2 network, asset, receiving wallet, and atomic-unit prices. Self-hosting remains MIT licensed and is never token-gated.
 
+The public launch target is **$0.001 per Agent authorization** and **$0.005 per Pro authorization**. These are displayed as planned pricing—not live pricing—until the payment configuration and first real settlement are verified.
+
 See [x402 configuration and readiness](docs/X402.md). The repository is code-ready for configuration, but a live Bazaar listing is **not** complete until real payment settings and an end-to-end settlement are verified.
 
 ## HTTP surface

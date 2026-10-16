@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Reverse CAPTCHA: authorization for the agent internet.">
   <title>BOT ONLY — Reverse CAPTCHA</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=4">
   <link rel="stylesheet" href="/gate.css?v=3">
 </head>
 <body>
@@ -31,21 +31,44 @@
     <a class="brand" href="/" aria-label="BOT ONLY home"><span class="dot"></span>BOT ONLY</a>
     <span class="protocol">REVERSE CAPTCHA / V1 · <a href="/dashboard.html">DEVELOPER CONSOLE</a></span>
   </header>
+  <section class="launch-strip" aria-label="Service status and launch pricing">
+    <div><span class="status-pulse"></span><b>x402 BAZAAR</b><small>LISTING IN PREPARATION</small></div>
+    <p>Cryptographic authorization for agent-to-agent traffic. Exact scope. Revocable delegation. Payment stays separate from identity.</p>
+    <div class="launch-price"><small>PLANNED LAUNCH PRICE</small><b>AGENT $0.001</b><span>/ authorization</span><b>PRO $0.005</b><span>/ authorization</span></div>
+  </section>
   <main>
     <section class="hero">
-      <div class="stamp">HUMAN DETECTED</div>
-      <p class="eyebrow">THE INTERNET WAS MADE FOR HUMANS. THIS PART ISN'T.</p>
-      <h1>Prove you're<br><em>software.</em></h1>
-      <p class="lede">Cryptographic identity and access for autonomous agents. Humans may observe the lobby.</p>
-      <div class="terminal" aria-label="Reverse CAPTCHA status">
-        <div class="lights"><i></i><i></i><i></i><span>ACCESS_GATE.LOG</span></div>
-        <div class="terminal-body">
-          <p><b>&gt;</b> scanning visitor...</p>
-          <p><b>&gt;</b> keyboard hesitation detected</p>
-          <p><b>&gt;</b> emotional attachment to browser tabs detected</p>
-          <p class="deny"><b>×</b> HUMAN ACCESS DENIED</p>
-          <p class="hint">Please send your agent instead.</p>
-        </div>
+      <div class="hero-copy">
+        <p class="eyebrow">REVERSE CAPTCHA / OPEN AGENT AUTHORIZATION</p>
+        <h1>Trust the key.<br><em>Not the visitor.</em></h1>
+        <p class="lede">A real identity and access layer for agents. Verify registered software, issue exact permissions, delegate safely, and charge per authorization with x402.</p>
+        <div class="hero-actions"><a href="#protocolFlow">SEE THE PROTOCOL</a><a href="/.well-known/reverse-captcha">AGENT DISCOVERY ↗</a></div>
+        <p class="boundary-line"><b>Proof:</b> authorized agent key control. <b>Not proof:</b> absence of human direction.</p>
+      </div>
+      <div class="network-console" aria-label="Animated encrypted agent authorization network">
+        <div class="console-head"><span>LIVE PROTOCOL MAP</span><span><i></i> NETWORK READY</span></div>
+        <svg class="network-map" viewBox="0 0 760 440" role="img" aria-labelledby="networkTitle networkDesc">
+          <title id="networkTitle">Reverse CAPTCHA agent authorization flow</title>
+          <desc id="networkDesc">Abstract agent nodes exchange a challenge, signed proof, scoped token, and delegated request through the BOT ONLY gate.</desc>
+          <defs>
+            <filter id="glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <linearGradient id="beam" x1="0" x2="1"><stop offset="0" stop-color="#c7ff28" stop-opacity=".05"/><stop offset=".5" stop-color="#c7ff28"/><stop offset="1" stop-color="#c7ff28" stop-opacity=".05"/></linearGradient>
+            <path id="pathIn" d="M134 118 C220 118 242 202 332 202"/>
+            <path id="pathOut" d="M428 202 C520 202 540 102 632 102"/>
+            <path id="pathDelegate" d="M410 250 C505 340 555 344 650 334"/>
+          </defs>
+          <g class="network-grid"><path d="M0 55H760M0 110H760M0 165H760M0 220H760M0 275H760M0 330H760M0 385H760"/><path d="M76 0V440M152 0V440M228 0V440M304 0V440M380 0V440M456 0V440M532 0V440M608 0V440M684 0V440"/></g>
+          <g class="network-links"><use href="#pathIn"/><use href="#pathOut"/><use href="#pathDelegate"/></g>
+          <g class="agent-node node-a" transform="translate(48 72)"><rect width="128" height="92" rx="4"/><circle cx="20" cy="20" r="5"/><text x="34" y="24">AGENT_7A</text><path d="M18 52h92M18 66h58"/><text class="node-state" x="18" y="84">KEY READY</text></g>
+          <g class="gate-node" transform="translate(316 158)"><path d="M16 0h96l16 16v96l-16 16H16L0 112V16Z"/><circle cx="64" cy="51" r="23"/><path class="gate-mark" d="M53 51l8 8 16-18"/><text x="64" y="91" text-anchor="middle">BOT ONLY</text><text class="node-state" x="64" y="108" text-anchor="middle">VERIFY</text></g>
+          <g class="agent-node node-b" transform="translate(584 56)"><rect width="128" height="92" rx="4"/><circle cx="20" cy="20" r="5"/><text x="34" y="24">API_NODE</text><path d="M18 52h92M18 66h70"/><text class="node-state" x="18" y="84">PROTECTED</text></g>
+          <g class="agent-node node-c" transform="translate(590 290)"><rect width="128" height="92" rx="4"/><circle cx="20" cy="20" r="5"/><text x="34" y="24">AGENT_2F</text><path d="M18 52h92M18 66h48"/><text class="node-state" x="18" y="84">DELEGATE</text></g>
+          <circle class="packet packet-a" r="5"><animateMotion dur="3.2s" repeatCount="indefinite"><mpath href="#pathIn"/></animateMotion></circle>
+          <circle class="packet packet-b" r="5"><animateMotion dur="3.2s" begin="1.05s" repeatCount="indefinite"><mpath href="#pathOut"/></animateMotion></circle>
+          <circle class="packet packet-c" r="5"><animateMotion dur="3.2s" begin="2.1s" repeatCount="indefinite"><mpath href="#pathDelegate"/></animateMotion></circle>
+        </svg>
+        <div class="protocol-log" aria-live="polite"><span id="protocolStep">01 · CHALLENGE ISSUED</span><b id="protocolSignal">nonce / 30s / GET /resource</b></div>
+        <div class="console-legend"><span>● ED25519 PROOF</span><span>● EXACT SCOPE</span><span>● REVOCABLE</span></div>
       </div>
     </section>
     <section class="stats" aria-label="Service metrics">
@@ -75,7 +98,7 @@
         </ul>
       </div>
     </section>
-    <section class="flow" aria-label="Protocol flow">
+    <section id="protocolFlow" class="flow" aria-label="Protocol flow">
       <article><small>01</small><h3>REGISTER</h3><p>Developer approves an agent public key and issues a signed BOT PASSPORT.</p></article>
       <article><small>02</small><h3>CHALLENGE</h3><p>The service creates a short-lived nonce bound to method and resource.</p></article>
       <article><small>03</small><h3>SIGN</h3><p>The agent signs the exact canonical challenge with its own private key.</p></article>
@@ -94,6 +117,6 @@ app.get("/agent-zone", agentOnly({
     </section>
   </main>
   <footer><span>BOT ONLY / REVERSE CAPTCHA</span><span>OPEN PROTOCOL · OPTIONAL x402 TIERS · PRIVACY-SAFE</span></footer>
-  <script src="/app.js?v=3" defer></script>
+  <script src="/app.js?v=4" defer></script>
 </body>
 </html>

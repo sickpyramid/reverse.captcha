@@ -19,3 +19,13 @@ document.querySelectorAll("[data-human-mode]").forEach(button=>button.addEventLi
 document.querySelector("#enterSite").addEventListener("click",openPublic);
 async function refreshMetrics(){try{const response=await fetch("/v1/metrics/public");if(!response.ok)return;const metrics=await response.json();document.querySelector("#agents").textContent=metrics.registered_agents.toLocaleString();document.querySelector("#verified").textContent=metrics.totals.verified.toLocaleString();document.querySelector("#rejected").textContent=metrics.totals.rejected.toLocaleString()}catch{}}
 refreshMetrics();setInterval(refreshMetrics,30000);
+const protocolStep=document.querySelector("#protocolStep"),protocolSignal=document.querySelector("#protocolSignal");
+const protocolSequence=[
+  ["01 · CHALLENGE ISSUED","nonce / 30s / GET /resource"],
+  ["02 · KEY PROOF RECEIVED","Ed25519 / bot_7A / signature valid"],
+  ["03 · ACCESS SCOPED","GET /resource / expires 300s"],
+  ["04 · DELEGATION ROUTED","bot_7A → bot_2F / subset only"],
+];
+let protocolIndex=0;
+if(protocolStep&&protocolSignal&&!reduced)setInterval(()=>{protocolIndex=(protocolIndex+1)%protocolSequence.length;[protocolStep.textContent,protocolSignal.textContent]=protocolSequence[protocolIndex]},3200);
+if(["127.0.0.1","localhost"].includes(location.hostname)&&new URLSearchParams(location.search).get("preview")==="public")openPublic();
