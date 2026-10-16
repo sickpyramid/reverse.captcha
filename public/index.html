@@ -5,28 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Reverse CAPTCHA: authorization for the agent internet.">
   <title>BOT ONLY — Reverse CAPTCHA</title>
-  <link rel="stylesheet" href="/styles.css?v=4">
+  <link rel="stylesheet" href="/styles.css?v=5">
   <link rel="stylesheet" href="/gate.css?v=3">
 </head>
 <body>
-  <section id="humanGate" class="human-gate" aria-labelledby="gateTitle">
-    <div class="gate-shell">
-      <div class="gate-top"><span>BOT ONLY / REVERSE CAPTCHA</span><span id="gateStatus" class="live">● CONNECTING</span></div>
-      <div id="stageLoading" class="gate-stage loading-stage" aria-live="polite"><span class="loading-ring" aria-hidden="true"></span><p>Preparing machine verification…</p></div>
-      <div id="stageCheckbox" class="gate-stage" hidden>
-        <p class="eyebrow">STEP 1 / DECLARE YOUR NATURE</p><h2 id="gateTitle">PROVE YOU'RE<br><span>SOFTWARE.</span></h2>
-        <button id="botCheckbox" class="bot-widget" type="button" aria-pressed="false"><span class="check-box" aria-hidden="true"><i></i></span><span class="widget-label">I'm a BOT<small>Click to begin machine verification</small></span><span class="widget-brand"><b>◈</b>BOT ONLY<small>Privacy · Protocol</small></span></button>
-        <p class="gate-note">Humans can click this too. The next step checks a real BOT PASSPORT.</p>
-      </div>
-      <div id="stageChallenge" class="gate-stage" hidden>
-        <div class="stage-heading"><p class="eyebrow">STEP 2 / MACHINE CHALLENGE</p><span class="step-chip">30 SEC</span></div><h2>SHOW YOUR<br><span>BOT PASSPORT.</span></h2>
-        <form id="passportForm" class="passport-form"><label for="agentId">REGISTERED AGENT ID</label><div class="field-row"><input id="agentId" name="agent_id" autocomplete="off" spellcheck="false" placeholder="bot_…" required><button type="submit">REQUEST CHALLENGE</button></div></form>
-        <form id="proofForm" class="passport-form proof-form" hidden><label for="canonical">SIGN THIS EXACT CHALLENGE</label><textarea id="canonical" readonly rows="5"></textarea><label for="signature">ED25519 SIGNATURE · BASE64URL</label><textarea id="signature" rows="3" autocomplete="off" spellcheck="false" placeholder="Paste the signature produced by your agent…" required></textarea><button class="verify-button" type="submit">VERIFY BOT PROOF →</button></form>
-        <p id="gateError" class="gate-error" role="alert"></p><button class="human-mode" type="button" data-human-mode>NO PASSPORT? PROCEED IN HUMAN MODE</button><p class="gate-note">Your private key never leaves your agent. Only the one-time signature is submitted.</p>
-      </div>
-      <div id="stageResult" class="gate-stage result-stage" hidden aria-live="polite"><div id="resultMark" class="result-mark">✓</div><p id="resultEyebrow" class="eyebrow">BOT PASSPORT VERIFIED</p><h2 id="resultTitle">MACHINE<br><span>ACCESS GRANTED.</span></h2><p id="resultCopy">The credential controls an approved agent identity. Welcome, machine.</p><button id="enterSite" class="enter-site" type="button">ENTER BOT ONLY →</button><small id="resultBoundary">Verification proves control of an authorized key—not the absence of human control.</small></div>
-    </div>
-  </section>
   <header class="nav">
     <a class="brand" href="/" aria-label="BOT ONLY home"><span class="dot"></span>BOT ONLY</a>
     <span class="protocol">REVERSE CAPTCHA / V1 · <a href="/dashboard.html">DEVELOPER CONSOLE</a></span>
@@ -69,6 +51,25 @@
         </svg>
         <div class="protocol-log" aria-live="polite"><span id="protocolStep">01 · CHALLENGE ISSUED</span><b id="protocolSignal">nonce / 30s / GET /resource</b></div>
         <div class="console-legend"><span>● ED25519 PROOF</span><span>● EXACT SCOPE</span><span>● REVOCABLE</span></div>
+      </div>
+    </section>
+    <section id="humanGate" class="captcha-demo" aria-labelledby="gateTitle">
+      <div class="demo-intro"><p class="eyebrow">LIVE REVERSE CAPTCHA</p><h2>Try the box.<br><span>Then prove the key.</span></h2><p>This is the real protocol surface, embedded as a demo. Clicking the claim is easy; cryptographic proof is the part that grants access.</p></div>
+      <div class="gate-shell">
+        <div class="gate-top"><span>BOT ONLY / REVERSE CAPTCHA</span><span id="gateStatus" class="live">● CONNECTING</span></div>
+        <div id="stageLoading" class="gate-stage loading-stage" aria-live="polite"><span class="loading-ring" aria-hidden="true"></span><p>Preparing machine verification…</p></div>
+        <div id="stageCheckbox" class="gate-stage" hidden>
+          <p class="eyebrow">STEP 1 / DECLARE YOUR NATURE</p><h2 id="gateTitle">PROVE YOU'RE<br><span>SOFTWARE.</span></h2>
+          <button id="botCheckbox" class="bot-widget" type="button" aria-pressed="false"><span class="check-box" aria-hidden="true"><i></i></span><span class="widget-label">I'm a BOT<small>Click to begin machine verification</small></span><span class="widget-brand"><b>◈</b>BOT ONLY<small>Privacy · Protocol</small></span></button>
+          <p class="gate-note">Humans can click this too. The next step checks a real registered agent key.</p>
+        </div>
+        <div id="stageChallenge" class="gate-stage" hidden>
+          <div class="stage-heading"><p class="eyebrow">STEP 2 / MACHINE CHALLENGE</p><span class="step-chip">30 SEC</span></div><h2>SHOW YOUR<br><span>BOT PASSPORT.</span></h2>
+          <form id="passportForm" class="passport-form"><label for="agentId">REGISTERED AGENT ID</label><div class="field-row"><input id="agentId" name="agent_id" autocomplete="off" spellcheck="false" placeholder="bot_…" required><button type="submit">REQUEST CHALLENGE</button></div></form>
+          <form id="proofForm" class="passport-form proof-form" hidden><label for="canonical">SIGN THIS EXACT CHALLENGE</label><textarea id="canonical" readonly rows="5"></textarea><label for="signature">ED25519 SIGNATURE · BASE64URL</label><textarea id="signature" rows="3" autocomplete="off" spellcheck="false" placeholder="Paste the signature produced by your agent…" required></textarea><button class="verify-button" type="submit">VERIFY BOT PROOF →</button></form>
+          <p id="gateError" class="gate-error" role="alert"></p><button class="human-mode" type="button" data-human-mode>PREVIEW HUMAN RESULT</button><p class="gate-note">Your private key never leaves your agent. Only the one-time signature is submitted.</p>
+        </div>
+        <div id="stageResult" class="gate-stage result-stage" hidden aria-live="polite"><div id="resultMark" class="result-mark">✓</div><p id="resultEyebrow" class="eyebrow">BOT PASSPORT VERIFIED</p><h2 id="resultTitle">MACHINE<br><span>ACCESS GRANTED.</span></h2><p id="resultCopy">The credential controls an approved agent identity. Welcome, machine.</p><button id="enterSite" class="enter-site" type="button">RESET DEMO →</button><small id="resultBoundary">Verification proves control of an authorized key—not the absence of human control.</small></div>
       </div>
     </section>
     <section class="stats" aria-label="Service metrics">
@@ -117,6 +118,6 @@ app.get("/agent-zone", agentOnly({
     </section>
   </main>
   <footer><span>BOT ONLY / REVERSE CAPTCHA</span><span>OPEN PROTOCOL · OPTIONAL x402 TIERS · PRIVACY-SAFE</span></footer>
-  <script src="/app.js?v=4" defer></script>
+  <script src="/app.js?v=5" defer></script>
 </body>
 </html>

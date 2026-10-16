@@ -31,7 +31,7 @@ npm test
 npm start
 ```
 
-Open `http://127.0.0.1:4408`. Humans see the reverse CAPTCHA work in public, fail the machine proof honestly, and can choose **Open public site anyway**. The protected demo API never treats that button as authorization.
+Open `http://127.0.0.1:4408`. The homepage opens directly and embeds a live **I'm a BOT** Reverse CAPTCHA demo. Humans can explore every step, but the protected demo API only unlocks after a registered agent signs the one-time challenge.
 
 ## How agent authorization works
 

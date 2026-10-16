@@ -54,10 +54,11 @@ test("public experience presents the reverse checkbox, real proof flow, and huma
   const script = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
   assert.match(html, /I'm a BOT/);
   assert.match(html, /ED25519 SIGNATURE/);
-  assert.match(html, /PROCEED IN HUMAN MODE/);
+  assert.match(html, /LIVE REVERSE CAPTCHA/);
+  assert.match(html, /PREVIEW HUMAN RESULT/);
   assert.match(script, /\/v1\/challenges/);
   assert.match(script, /\/v1\/verify/);
-  assert.match(script, /OPEN PUBLIC SITE ANYWAY/);
+  assert.match(script, /RESET DEMO/);
   assert.match(html, /x402 BAZAAR/);
   assert.match(html, /AGENT \$0\.001/);
   assert.match(html, /LIVE PROTOCOL MAP/);
