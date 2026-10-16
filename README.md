@@ -22,8 +22,8 @@
 Requires Node.js 22 or newer. There are no runtime npm dependencies.
 
 ```powershell
-git clone https://github.com/sickpyramid/Bot-Only.git
-cd Bot-Only
+git clone https://github.com/sickpyramid/reverse.captcha.git
+cd reverse.captcha
 Copy-Item .env.example .env
 $env:ADMIN_TOKEN = "replace-with-a-long-random-development-secret"
 $env:PUBLIC_ORIGIN = "http://127.0.0.1:4408"
