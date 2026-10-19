@@ -63,8 +63,30 @@ function meta(html, name) {
   return null;
 }
 
+function parseDate(value) {
+  if (!value) return null;
+  const timestamp = Date.parse(String(value));
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
+}
+
+function dateSignals(html) {
+  const candidates = [
+    ["meta:article:modified_time", meta(html, "article:modified_time")],
+    ["meta:og:updated_time", meta(html, "og:updated_time")],
+    ["meta:dateModified", meta(html, "dateModified")],
+    ["meta:article:published_time", meta(html, "article:published_time")],
+    ["meta:datePublished", meta(html, "datePublished")],
+  ];
+  for (const field of ["dateModified", "datePublished", "uploadDate"]) {
+    const pattern = new RegExp(`['"]${field}['"]\\s*:\\s*['"]([^'"]+)['"]`, "i");
+    candidates.push([`structured:${field}`, html.match(pattern)?.[1]]);
+  }
+  candidates.push(["html:time", html.match(/<time[^>]+datetime=["']([^"']+)["']/i)?.[1]]);
+  return candidates.map(([source, value]) => ({ source, timestamp: parseDate(value) })).filter(({ timestamp }) => timestamp);
+}
+
 function pageFacts(text, contentType) {
-  if (!/html|xml/i.test(contentType)) return { title: null, description: null, canonical_url: null, link_count: 0, text_excerpt: cleanText(text, 600) };
+  if (!/html|xml/i.test(contentType)) return { title: null, description: null, canonical_url: null, link_count: 0, text_excerpt: cleanText(text, 600), date_signals: [] };
   const title = cleanText(text.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1], 200) || null;
   const canonical = text.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["'][^>]*>/i)?.[1] || null;
   const withoutNoise = text.replace(/<(script|style|noscript|svg)[^>]*>[\s\S]*?<\/\1>/gi, " ");
@@ -74,6 +96,36 @@ function pageFacts(text, contentType) {
     canonical_url: canonical,
     link_count: (text.match(/<a\b/gi) || []).length,
     text_excerpt: cleanText(withoutNoise, 600),
+    date_signals: dateSignals(text),
+  };
+}
+
+export function assessFreshness(evidence, input = {}, now = new Date()) {
+  const requested = Number(input.max_age_seconds ?? 86_400);
+  if (!Number.isInteger(requested) || requested < 60 || requested > 2_678_400) throw new Error("max_age_seconds must be an integer from 60 to 2678400");
+  if (!evidence?.ok) return { ...evidence, max_age_seconds: requested, freshness: "unavailable", is_within_max_age: null, confidence: "none", evidence_timestamp: null, age_seconds: null, date_candidates: [] };
+  const candidates = [];
+  const lastModified = parseDate(evidence.headers?.last_modified);
+  if (lastModified) candidates.push({ source: "http:last-modified", timestamp: lastModified, confidence: "medium" });
+  for (const signal of evidence.date_signals || []) candidates.push({ ...signal, confidence: signal.source.includes("modified") || signal.source.includes("updated") ? "medium" : "low" });
+  const nowMs = now.getTime();
+  const plausible = candidates.filter(({ timestamp }) => {
+    const value = Date.parse(timestamp);
+    return Number.isFinite(value) && value <= nowMs + 300_000;
+  }).sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+  const selected = plausible[0] || null;
+  const ageSeconds = selected ? Math.max(0, Math.floor((nowMs - Date.parse(selected.timestamp)) / 1000)) : null;
+  return {
+    ...evidence,
+    max_age_seconds: requested,
+    freshness: selected ? (ageSeconds <= requested ? "fresh" : "stale") : "unknown",
+    is_within_max_age: selected ? ageSeconds <= requested : null,
+    confidence: selected?.confidence || "none",
+    evidence_timestamp: selected?.timestamp || null,
+    evidence_source: selected?.source || null,
+    age_seconds: ageSeconds,
+    date_candidates: plausible,
+    claim_limit: "Freshness is based on publisher- and server-declared timestamps observed at fetch time. It does not prove factual accuracy, authorship, or when the underlying event occurred.",
   };
 }
 
@@ -144,4 +196,8 @@ export async function createUrlEvidence(input, now = new Date()) {
   } catch (error) {
     return { ok: false, requested_url: original, final_url: current.href, fetched_at: now.toISOString(), error: String(error.message || error), redirects };
   }
+}
+
+export async function createFreshnessReport(input, now = new Date()) {
+  return assessFreshness(await createUrlEvidence(input, now), input, now);
 }

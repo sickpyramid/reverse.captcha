@@ -8,7 +8,7 @@ import { ReverseCaptchaService } from "./service.mjs";
 import { JsonStore } from "./store.mjs";
 import { publicTiers } from "./tiers.mjs";
 import { X402Payments } from "./x402.mjs";
-import { createUrlEvidence } from "./evidence.mjs";
+import { createFreshnessReport, createUrlEvidence } from "./evidence.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const dataDir = resolve(process.env.DATA_DIR || join(root, "data"));
@@ -50,6 +50,7 @@ const x402 = new X402Payments({
     pro: process.env.X402_PRO_AMOUNT,
     register: process.env.X402_REGISTER_AMOUNT,
     evidence: process.env.X402_EVIDENCE_AMOUNT,
+    freshness: process.env.X402_FRESHNESS_AMOUNT,
   },
 });
 const mime = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml" };
@@ -138,6 +139,7 @@ const routes = new Map([
     services: [
       { id: "agent-identity-access", name: "Agent Identity & Access", method: "POST", path: "/v1/paid/register", price_atomic: x402.prices.register || null, description: "Register an Ed25519 agent identity and activate the hosted Agent tier." },
       { id: "web-evidence-snapshot", name: "Web Evidence Snapshot", method: "POST", path: "/v1/paid/evidence", price_atomic: x402.prices.evidence || null, description: "Create a privacy-safe point-in-time URL and content evidence snapshot." },
+      { id: "source-freshness-check", name: "Source Freshness Check", method: "POST", path: "/v1/paid/freshness", price_atomic: x402.prices.freshness || null, description: "Check whether a public HTTPS source is within a requested age using observable date evidence." },
     ],
     claim_limit: "Agent authorization proves control of a registered key, not absence of human direction.",
   })],
@@ -149,10 +151,11 @@ const routes = new Map([
     payment_protocol: "x402-v2",
     network: x402.network,
     ownershipProofs: x402.payTo ? [x402.payTo] : [],
-    resources: [`${issuer}/v1/paid/register`, `${issuer}/v1/paid/evidence`],
+    resources: [`${issuer}/v1/paid/register`, `${issuer}/v1/paid/evidence`, `${issuer}/v1/paid/freshness`],
     resource_metadata: [
       { method: "POST", url: `${issuer}/v1/paid/register`, price: "$0.01", description: "Hosted Reverse CAPTCHA agent identity registration and Agent-tier activation." },
       { method: "POST", url: `${issuer}/v1/paid/evidence`, price: "$0.03", description: "Point-in-time HTTPS content evidence with hashes and provenance." },
+      { method: "POST", url: `${issuer}/v1/paid/freshness`, price: "$0.01", description: "Source age check using observable HTTP and publisher-declared timestamps." },
     ],
   })],
 ]);
@@ -169,6 +172,13 @@ const evidencePayment = {
   input: { url: "https://example.com/" },
   inputSchema: { type: "object", properties: { url: { type: "string", format: "uri", pattern: "^https://" } }, required: ["url"] },
   outputExample: { ok: true, final_url: "https://example.com/", status: 200, fetched_at: "2026-01-01T00:00:00.000Z", sha256: "...", title: "Example Domain" },
+};
+
+const freshnessPayment = {
+  description: "Check a public HTTPS source against a requested maximum age",
+  input: { url: "https://example.com/news", max_age_seconds: 86400 },
+  inputSchema: { type: "object", properties: { url: { type: "string", format: "uri", pattern: "^https://" }, max_age_seconds: { type: "integer", minimum: 60, maximum: 2678400, default: 86400 } }, required: ["url"] },
+  outputExample: { ok: true, freshness: "fresh", is_within_max_age: true, evidence_timestamp: "2026-01-01T00:00:00.000Z", evidence_source: "http:last-modified", age_seconds: 320, confidence: "medium" },
 };
 
 const bearer = (request) => {
@@ -240,6 +250,20 @@ const server = createServer(async (request, response) => {
       if (parsed.protocol !== "https:" || parsed.username || parsed.password) return send(response, 400, { error: "invalid_request", code: "invalid_url", message: "Only public HTTPS URLs without credentials are accepted", retryable: false });
       const settlement = await x402.authorize({ product: "evidence", url: `${issuer}${url.pathname}`, paymentSignature, ...evidencePayment });
       const result = await createUrlEvidence(target);
+      return send(response, 200, { ...result, payment: { transaction: settlement.transaction, network: settlement.network } }, { "payment-response": Buffer.from(JSON.stringify(settlement)).toString("base64") });
+    }
+    if (method === "POST" && url.pathname === "/v1/paid/freshness") {
+      checkRate(clientKey(request));
+      const payment = x402.requirement({ product: "freshness", url: `${issuer}${url.pathname}`, ...freshnessPayment });
+      const paymentSignature = request.headers["payment-signature"];
+      if (!paymentSignature) return send(response, 402, payment.paymentRequired, { "payment-required": payment.header });
+      const target = await body(request);
+      let parsed;
+      try { parsed = new URL(String(target.url || "")); } catch { return send(response, 400, { error: "invalid_request", code: "invalid_url", message: "url must be a valid public HTTPS URL", retryable: false }); }
+      if (parsed.protocol !== "https:" || parsed.username || parsed.password) return send(response, 400, { error: "invalid_request", code: "invalid_url", message: "Only public HTTPS URLs without credentials are accepted", retryable: false });
+      if (target.max_age_seconds !== undefined && (!Number.isInteger(Number(target.max_age_seconds)) || Number(target.max_age_seconds) < 60 || Number(target.max_age_seconds) > 2678400)) return send(response, 400, { error: "invalid_request", code: "invalid_max_age", message: "max_age_seconds must be an integer from 60 to 2678400", retryable: false });
+      const settlement = await x402.authorize({ product: "freshness", url: `${issuer}${url.pathname}`, paymentSignature, ...freshnessPayment });
+      const result = await createFreshnessReport(target);
       return send(response, 200, { ...result, payment: { transaction: settlement.transaction, network: settlement.network } }, { "payment-response": Buffer.from(JSON.stringify(settlement)).toString("base64") });
     }
     if (method === "GET" && url.pathname === "/v1/demo/agent-only") {

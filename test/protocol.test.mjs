@@ -6,6 +6,7 @@ import test from "node:test";
 import { createSigningKeys } from "../src/crypto.mjs";
 import { ReverseCaptchaService } from "../src/service.mjs";
 import { JsonStore } from "../src/store.mjs";
+import { assessFreshness } from "../src/evidence.mjs";
 import { createAgentIdentity, signChallenge, verifyAccessToken } from "../sdk/index.mjs";
 
 async function fixture() {
@@ -64,4 +65,20 @@ test("public experience presents the reverse checkbox, real proof flow, and huma
   assert.match(html, /EVIDENCE \$0\.03/);
   assert.match(html, /LIVE PROTOCOL MAP/);
   assert.match(html, /AGENT_7A/);
+});
+
+test("freshness assessment is deterministic and preserves its evidence boundary", () => {
+  const now = new Date("2026-10-19T12:00:00.000Z");
+  const evidence = {
+    ok: true,
+    headers: { last_modified: "Sun, 19 Oct 2026 11:30:00 GMT" },
+    date_signals: [{ source: "meta:datePublished", timestamp: "2026-10-18T10:00:00.000Z" }],
+  };
+  const fresh = assessFreshness(evidence, { max_age_seconds: 3600 }, now);
+  assert.equal(fresh.freshness, "fresh");
+  assert.equal(fresh.age_seconds, 1800);
+  assert.equal(fresh.evidence_source, "http:last-modified");
+  assert.match(fresh.claim_limit, /does not prove factual accuracy/);
+  const stale = assessFreshness(evidence, { max_age_seconds: 900 }, now);
+  assert.equal(stale.freshness, "stale");
 });

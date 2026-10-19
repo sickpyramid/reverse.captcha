@@ -14,6 +14,7 @@
 |---|---|---:|---|
 | Agent Identity & Access | `POST /v1/paid/register` | $0.01 | Registered Ed25519 identity, Agent tier, and signed BOT PASSPORT |
 | Web Evidence Snapshot | `POST /v1/paid/evidence` | $0.03 | Bounded HTTPS snapshot with SHA-256, metadata, redirects, and text excerpt |
+| Source Freshness Check | `POST /v1/paid/freshness` | $0.01 | Fresh/stale/unknown assessment against a requested age, with observed date evidence |
 
 Browse the machine-readable catalog at `GET /v1/services`, the x402 discovery document at `GET /.well-known/x402`, and the OpenAPI description at `GET /openapi.json`.
 
@@ -133,6 +134,7 @@ See [x402 configuration and readiness](docs/X402.md). The repository is code-rea
 | `POST /v1/paid/tiers/:tier` | x402-paid hosted tier activation |
 | `POST /v1/paid/register` | x402-paid identity registration and BOT PASSPORT |
 | `POST /v1/paid/evidence` | x402-paid privacy-safe web evidence snapshot |
+| `POST /v1/paid/freshness` | x402-paid source freshness assessment |
 | `GET /v1/metrics/public` | Privacy-safe rolling aggregates |
 | `GET /v1/admin/dashboard` | Private operator dashboard data |
 

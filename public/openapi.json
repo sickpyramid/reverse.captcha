@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Reverse Agent API by reverse.captcha",
-    "version": "0.4.0",
-    "description": "Pay-per-use security and web utilities for autonomous agents. The launch catalog includes Agent Identity & Access and Web Evidence Snapshot. Authorization proves control of an approved key, not absence of human direction."
+    "version": "0.5.0",
+    "description": "Pay-per-use security and web utilities for autonomous agents. The catalog includes Agent Identity & Access, Web Evidence Snapshot, and Source Freshness Check. Authorization proves control of an approved key, not absence of human direction."
   },
   "servers": [{ "url": "https://reversecaptcha.fun" }],
   "x-discovery": {
@@ -70,6 +70,39 @@
         },
         "responses": {
           "200": { "description": "Evidence snapshot and payment receipt" },
+          "402": { "$ref": "#/components/responses/PaymentRequired" }
+        }
+      }
+    },
+    "/v1/paid/freshness": {
+      "post": {
+        "operationId": "checkSourceFreshness",
+        "summary": "Source Freshness Check",
+        "description": "Checks observable HTTP and publisher-declared timestamps against a requested maximum age. The result does not prove factual accuracy, authorship, or event time.",
+        "x-payment-info": {
+          "protocols": ["x402"],
+          "price": { "mode": "fixed", "currency": "USD", "amount": "0.01" },
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "payTo": "0x87e8d821649a61815e4fa61d892fca13b7d07028"
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                  "url": { "type": "string", "format": "uri", "pattern": "^https://" },
+                  "max_age_seconds": { "type": "integer", "minimum": 60, "maximum": 2678400, "default": 86400 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Freshness assessment, date evidence, bounded snapshot, and payment receipt" },
           "402": { "$ref": "#/components/responses/PaymentRequired" }
         }
       }
