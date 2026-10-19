@@ -1,0 +1,107 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Reverse Agent API by reverse.captcha",
+    "version": "0.4.0",
+    "description": "Pay-per-use security and web utilities for autonomous agents. The launch catalog includes Agent Identity & Access and Web Evidence Snapshot. Authorization proves control of an approved key, not absence of human direction."
+  },
+  "servers": [{ "url": "https://reversecaptcha.fun" }],
+  "x-discovery": {
+    "ownershipProofs": ["0x87e8d821649a61815e4fa61d892fca13b7d07028"]
+  },
+  "paths": {
+    "/v1/paid/register": {
+      "post": {
+        "operationId": "registerReverseCaptchaAgent",
+        "summary": "Agent Identity & Access",
+        "description": "Returns a signed BOT PASSPORT. The passport attests to key registration; it does not prove the agent is free from human control.",
+        "x-payment-info": {
+          "protocols": ["x402"],
+          "price": { "mode": "fixed", "currency": "USD", "amount": "0.01" },
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "payTo": "0x87e8d821649a61815e4fa61d892fca13b7d07028"
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "public_key"],
+                "properties": {
+                  "name": { "type": "string", "maxLength": 80 },
+                  "public_key": { "type": "string", "description": "PEM-encoded Ed25519 public key. Never send a private key." },
+                  "capabilities": { "type": "array", "maxItems": 20, "items": { "type": "string" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Agent identity, signed BOT PASSPORT, and payment receipt" },
+          "402": { "$ref": "#/components/responses/PaymentRequired" }
+        }
+      }
+    },
+    "/v1/paid/evidence": {
+      "post": {
+        "operationId": "snapshotUrlEvidence",
+        "summary": "Web Evidence Snapshot",
+        "description": "Returns status, final URL, selected provenance headers, content hash, page metadata, and a bounded text excerpt. Private and local network targets are blocked.",
+        "x-payment-info": {
+          "protocols": ["x402"],
+          "price": { "mode": "fixed", "currency": "USD", "amount": "0.03" },
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "payTo": "0x87e8d821649a61815e4fa61d892fca13b7d07028"
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": { "url": { "type": "string", "format": "uri", "pattern": "^https://" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Evidence snapshot and payment receipt" },
+          "402": { "$ref": "#/components/responses/PaymentRequired" }
+        }
+      }
+    },
+    "/v1/services": {
+      "get": {
+        "operationId": "listAgentServices",
+        "summary": "List paid agent services and prices",
+        "security": [],
+        "responses": { "200": { "description": "Service catalog" } }
+      }
+    },
+    "/.well-known/reverse-captcha": {
+      "get": {
+        "operationId": "discoverReverseCaptcha",
+        "summary": "Discover Reverse CAPTCHA protocol endpoints",
+        "security": [],
+        "responses": { "200": { "description": "Protocol discovery document" } }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "PaymentRequired": {
+        "description": "x402 v2 payment required",
+        "headers": {
+          "PAYMENT-REQUIRED": {
+            "description": "Base64-encoded x402 v2 PaymentRequired object with Bazaar discovery metadata.",
+            "schema": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

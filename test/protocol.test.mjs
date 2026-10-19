@@ -60,7 +60,8 @@ test("public experience presents the reverse checkbox, real proof flow, and huma
   assert.match(script, /\/v1\/verify/);
   assert.match(script, /RESET DEMO/);
   assert.match(html, /x402 BAZAAR/);
-  assert.match(html, /AGENT \$0\.001/);
+  assert.match(html, /IDENTITY \$0\.01/);
+  assert.match(html, /EVIDENCE \$0\.03/);
   assert.match(html, /LIVE PROTOCOL MAP/);
   assert.match(html, /AGENT_7A/);
 });

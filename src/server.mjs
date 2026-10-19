@@ -8,6 +8,7 @@ import { ReverseCaptchaService } from "./service.mjs";
 import { JsonStore } from "./store.mjs";
 import { publicTiers } from "./tiers.mjs";
 import { X402Payments } from "./x402.mjs";
+import { createUrlEvidence } from "./evidence.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const dataDir = resolve(process.env.DATA_DIR || join(root, "data"));
@@ -44,9 +45,14 @@ const x402 = new X402Payments({
   network: process.env.X402_NETWORK,
   asset: process.env.X402_ASSET,
   payTo: process.env.X402_PAY_TO,
-  prices: { agent: process.env.X402_AGENT_AMOUNT, pro: process.env.X402_PRO_AMOUNT },
+  prices: {
+    agent: process.env.X402_AGENT_AMOUNT,
+    pro: process.env.X402_PRO_AMOUNT,
+    register: process.env.X402_REGISTER_AMOUNT,
+    evidence: process.env.X402_EVIDENCE_AMOUNT,
+  },
 });
-const mime = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml" };
+const mime = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml" };
 
 // Privacy-safe process-wide limiter. It deliberately stores no IP address or
 // fingerprint. Deployments needing per-client limits should add them at a
@@ -124,7 +130,46 @@ const routes = new Map([
   ["GET /v1/metrics/public", async () => service.metrics()],
   ["GET /healthz", async () => ({ ok: true, protocol: "reverse-captcha/v1" })],
   ["GET /v1/tiers", async () => ({ payment_protocol: "x402-v2", payment_enabled: x402.enabled, tiers: publicTiers(x402.prices) })],
+  ["GET /v1/services", async () => ({
+    payment_protocol: "x402-v2",
+    payment_enabled: x402.enabled,
+    network: x402.network,
+    receiver: x402.payTo,
+    services: [
+      { id: "agent-identity-access", name: "Agent Identity & Access", method: "POST", path: "/v1/paid/register", price_atomic: x402.prices.register || null, description: "Register an Ed25519 agent identity and activate the hosted Agent tier." },
+      { id: "web-evidence-snapshot", name: "Web Evidence Snapshot", method: "POST", path: "/v1/paid/evidence", price_atomic: x402.prices.evidence || null, description: "Create a privacy-safe point-in-time URL and content evidence snapshot." },
+    ],
+    claim_limit: "Agent authorization proves control of a registered key, not absence of human direction.",
+  })],
+  ["GET /.well-known/x402", async () => ({
+    version: 1,
+    name: "Reverse Agent API by reverse.captcha",
+    description: "Pay-per-use security and web utilities for autonomous agents.",
+    openapi: `${issuer}/openapi.json`,
+    payment_protocol: "x402-v2",
+    network: x402.network,
+    ownershipProofs: x402.payTo ? [x402.payTo] : [],
+    resources: [`${issuer}/v1/paid/register`, `${issuer}/v1/paid/evidence`],
+    resource_metadata: [
+      { method: "POST", url: `${issuer}/v1/paid/register`, price: "$0.01", description: "Hosted Reverse CAPTCHA agent identity registration and Agent-tier activation." },
+      { method: "POST", url: `${issuer}/v1/paid/evidence`, price: "$0.03", description: "Point-in-time HTTPS content evidence with hashes and provenance." },
+    ],
+  })],
 ]);
+
+const registrationPayment = {
+  description: "Register an Ed25519 agent identity and activate the reverse.captcha Agent tier",
+  input: { name: "Example Agent", public_key: "-----BEGIN PUBLIC KEY-----\\n...\\n-----END PUBLIC KEY-----", capabilities: ["fetch", "summarize"] },
+  inputSchema: { type: "object", properties: { name: { type: "string" }, public_key: { type: "string" }, capabilities: { type: "array", items: { type: "string" } } }, required: ["name", "public_key"] },
+  outputExample: { agent: { id: "bot_...", tier: "agent" }, passport: "eyJ...", payment: { network: "eip155:8453", transaction: "0x..." } },
+};
+
+const evidencePayment = {
+  description: "Create a privacy-safe point-in-time HTTPS content evidence snapshot",
+  input: { url: "https://example.com/" },
+  inputSchema: { type: "object", properties: { url: { type: "string", format: "uri", pattern: "^https://" } }, required: ["url"] },
+  outputExample: { ok: true, final_url: "https://example.com/", status: 200, fetched_at: "2026-01-01T00:00:00.000Z", sha256: "...", title: "Example Domain" },
+};
 
 const bearer = (request) => {
   const authorization = request.headers.authorization || "";
@@ -171,6 +216,31 @@ const server = createServer(async (request, response) => {
       const settlement = await x402.authorize({ tier, url: `${issuer}${url.pathname}`, paymentSignature });
       const result = await service.activateTier(target.agent_id, tier, settlement);
       return send(response, 200, result, { "payment-response": Buffer.from(JSON.stringify(settlement)).toString("base64") });
+    }
+    if (method === "POST" && url.pathname === "/v1/paid/register") {
+      checkRate(clientKey(request));
+      const payment = x402.requirement({ product: "register", url: `${issuer}${url.pathname}`, ...registrationPayment });
+      const paymentSignature = request.headers["payment-signature"];
+      if (!paymentSignature) return send(response, 402, payment.paymentRequired, { "payment-required": payment.header });
+      const target = await body(request);
+      const agentId = service.assertPaidRegistration(target);
+      const settlement = await x402.authorize({ product: "register", url: `${issuer}${url.pathname}`, paymentSignature, ...registrationPayment });
+      const registered = await service.registerAgent(target);
+      const activation = await service.activateTier(agentId, "agent", settlement);
+      return send(response, 201, { ...registered, agent: { ...registered.agent, tier: "agent" }, passport: activation.passport, payment: activation.payment }, { "payment-response": Buffer.from(JSON.stringify(settlement)).toString("base64") });
+    }
+    if (method === "POST" && url.pathname === "/v1/paid/evidence") {
+      checkRate(clientKey(request));
+      const payment = x402.requirement({ product: "evidence", url: `${issuer}${url.pathname}`, ...evidencePayment });
+      const paymentSignature = request.headers["payment-signature"];
+      if (!paymentSignature) return send(response, 402, payment.paymentRequired, { "payment-required": payment.header });
+      const target = await body(request);
+      let parsed;
+      try { parsed = new URL(String(target.url || "")); } catch { return send(response, 400, { error: "invalid_request", code: "invalid_url", message: "url must be a valid public HTTPS URL", retryable: false }); }
+      if (parsed.protocol !== "https:" || parsed.username || parsed.password) return send(response, 400, { error: "invalid_request", code: "invalid_url", message: "Only public HTTPS URLs without credentials are accepted", retryable: false });
+      const settlement = await x402.authorize({ product: "evidence", url: `${issuer}${url.pathname}`, paymentSignature, ...evidencePayment });
+      const result = await createUrlEvidence(target);
+      return send(response, 200, { ...result, payment: { transaction: settlement.transaction, network: settlement.network } }, { "payment-response": Buffer.from(JSON.stringify(settlement)).toString("base64") });
     }
     if (method === "GET" && url.pathname === "/v1/demo/agent-only") {
       const authorization = request.headers.authorization || "";

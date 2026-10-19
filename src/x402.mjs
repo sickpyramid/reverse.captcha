@@ -17,29 +17,32 @@ export class X402Payments {
     }
   }
 
-  requirement({ tier, url }) {
-    const amount = this.prices[tier];
-    if (!this.enabled || !amount) throw reject(ErrorCode.PAYMENT_NOT_CONFIGURED, "Paid tier activation is not configured");
+  requirement({ product, tier, url, description, input, inputSchema, outputExample }) {
+    const id = product || tier;
+    const amount = this.prices[id];
+    if (!this.enabled || !amount) throw reject(ErrorCode.PAYMENT_NOT_CONFIGURED, "x402 payment is not configured for this service");
     const paymentRequirements = {
       scheme: "exact", network: this.network, amount: String(amount), asset: this.asset,
       payTo: this.payTo, maxTimeoutSeconds: 60,
-      extra: { paymentFlow: "authorization" },
+      extra: { name: "USD Coin", version: "2", paymentFlow: "authorization" },
     };
+    const exampleInput = input || { agent_id: "bot_..." };
+    const exampleOutput = outputExample || { tier: id, status: "active", agent_id: "bot_..." };
     const info = {
-      input: { type: "http", method: "POST", bodyType: "json", body: { agent_id: "bot_..." } },
-      output: { type: "json", example: { tier, status: "active", agent_id: "bot_..." } },
+      input: { type: "http", method: "POST", bodyType: "json", body: exampleInput },
+      output: { type: "json", example: exampleOutput },
     };
     const schema = {
       $schema: "https://json-schema.org/draft/2020-12/schema", type: "object",
       properties: {
-        input: { type: "object", properties: { type: { const: "http" }, method: { const: "POST" }, bodyType: { const: "json" }, body: { type: "object", properties: { agent_id: { type: "string" } }, required: ["agent_id"] } }, required: ["type", "method", "bodyType", "body"] },
+        input: { type: "object", properties: { type: { const: "http" }, method: { const: "POST" }, bodyType: { const: "json" }, body: inputSchema || { type: "object" } }, required: ["type", "method", "bodyType", "body"] },
         output: { type: "object", properties: { type: { type: "string" }, example: { type: "object" } }, required: ["type"] },
       }, required: ["input"],
     };
     const paymentRequired = {
       x402Version: 2,
       error: "PAYMENT-SIGNATURE header is required",
-      resource: { url, description: `Activate the reverse.captcha ${tier} tier`, mimeType: "application/json", serviceName: "reverse.captcha", tags: ["agents", "authorization", "privacy"] },
+      resource: { url, description: description || `Activate the reverse.captcha ${id} tier`, mimeType: "application/json", serviceName: "reverse.captcha", tags: ["agents", "authorization", "privacy", "evidence"] },
       accepts: [paymentRequirements],
       extensions: { bazaar: { info, schema } },
     };
@@ -55,8 +58,8 @@ export class X402Payments {
     return { body: await response.json(), extensions: response.headers?.get?.("extension-responses") || null };
   }
 
-  async authorize({ tier, url, paymentSignature }) {
-    const requirement = this.requirement({ tier, url });
+  async authorize({ product, tier, url, paymentSignature, description, input, inputSchema, outputExample }) {
+    const requirement = this.requirement({ product, tier, url, description, input, inputSchema, outputExample });
     if (!paymentSignature) throw reject(ErrorCode.PAYMENT_REQUIRED, "Payment required", { details: requirement.paymentRequired });
     let paymentPayload;
     try { paymentPayload = decode(paymentSignature); } catch { throw reject(ErrorCode.PAYMENT_REJECTED, "Malformed PAYMENT-SIGNATURE header"); }

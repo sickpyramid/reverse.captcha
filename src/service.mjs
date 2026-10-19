@@ -116,13 +116,7 @@ export class ReverseCaptchaService {
   }
 
   async registerAgent({ name, public_key, capabilities = [] }, now = new Date()) {
-    if (!name || String(name).length > 80) throw reject(ErrorCode.INVALID_NAME, "A name up to 80 characters is required");
-    try {
-      createPublicKey(public_key);
-    } catch (cause) {
-      throw reject(ErrorCode.INVALID_PUBLIC_KEY, "public_key must be a valid PEM-encoded Ed25519 public key", { cause });
-    }
-    const agentId = `bot_${fingerprint(public_key)}`;
+    const agentId = this.validateAgentRegistration({ name, public_key });
     const existing = this.store.state.agents[agentId];
     if (existing && existing.public_key !== public_key) throw reject(ErrorCode.IDENTITY_COLLISION, "Agent identity collision");
     const agent = {
@@ -139,6 +133,24 @@ export class ReverseCaptchaService {
     const passport = this.issuePassport(agent, now);
     await this.store.persist();
     return { agent: this.publicAgent(agent), passport };
+  }
+
+  validateAgentRegistration({ name, public_key }) {
+    if (!name || String(name).length > 80) throw reject(ErrorCode.INVALID_NAME, "A name up to 80 characters is required");
+    try {
+      const key = createPublicKey(public_key);
+      if (key.asymmetricKeyType !== "ed25519") throw new Error("Not an Ed25519 key");
+    } catch (cause) {
+      throw reject(ErrorCode.INVALID_PUBLIC_KEY, "public_key must be a valid PEM-encoded Ed25519 public key", { cause });
+    }
+    return `bot_${fingerprint(public_key)}`;
+  }
+
+  assertPaidRegistration(input) {
+    const agentId = this.validateAgentRegistration(input);
+    const existing = this.store.state.agents[agentId];
+    if (existing && existing.tier !== "free") throw reject(ErrorCode.INVALID_TIER, "Agent is already registered on a paid tier");
+    return agentId;
   }
 
   issuePassport(agent, now = new Date()) {
@@ -335,7 +347,7 @@ export class ReverseCaptchaService {
     this.store.state.payments[paymentId] = { id: paymentId, agent_id: agent.id, tier: tier.id, transaction: payment.transaction, network: payment.network, created_at: now.toISOString() };
     this.store.increment("paid_tier_activations", now);
     await this.store.persist();
-    return { agent_id: agent.id, tier: tier.id, status: "active", payment: { transaction: payment.transaction, network: payment.network } };
+    return { agent_id: agent.id, tier: tier.id, status: "active", passport: this.issuePassport(agent, now), payment: { transaction: payment.transaction, network: payment.network } };
   }
 
   assertTierActivation(agentId, tierId) {
@@ -393,7 +405,8 @@ export class ReverseCaptchaService {
       scope_limit: "Scopes are exact METHOD+resource pairs. Wildcards and path prefixes are not honored.",
       tiers: publicTiers(),
       registration_endpoint: `${this.issuer}/v1/admin/agents`,
-      registration_note: "Registration is operator-authorized: it requires the admin bearer token. Agents cannot self-register.",
+      paid_registration_endpoint: `${this.issuer}/v1/paid/register`,
+      registration_note: "Operator-approved registration uses the admin endpoint. Public self-registration is available through the x402-paid endpoint.",
       claim_limit: "Authorization proves control of a registered agent key. It does not prove the absence of human direction or control.",
     };
   }

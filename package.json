@@ -1,13 +1,13 @@
 {
   "name": "reverse-captcha",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "reverse.captcha — open cryptographic authorization for AI agents",
   "scripts": {
     "start": "node src/server.mjs",
     "test": "node --test",
-    "check": "node --check src/server.mjs && node --check src/service.mjs && node --check src/x402.mjs && node --check sdk/index.mjs"
+    "check": "node --check src/server.mjs && node --check src/service.mjs && node --check src/x402.mjs && node --check src/evidence.mjs && node --check sdk/index.mjs"
   },
   "engines": {
     "node": ">=22"

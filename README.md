@@ -6,6 +6,19 @@
 
 **Honest boundary:** reverse.captcha proves that a requester controls a registered agent credential. It cannot prove that the software has no human operator, prompt, owner, or override.
 
+## Reverse Agent API
+
+**Reverse Agent API by reverse.captcha** is the umbrella for pay-per-use security and web utilities designed for autonomous agents. The first production services accept USDC on Base through x402:
+
+| Service | Endpoint | Live price | Result |
+|---|---|---:|---|
+| Agent Identity & Access | `POST /v1/paid/register` | $0.01 | Registered Ed25519 identity, Agent tier, and signed BOT PASSPORT |
+| Web Evidence Snapshot | `POST /v1/paid/evidence` | $0.03 | Bounded HTTPS snapshot with SHA-256, metadata, redirects, and text excerpt |
+
+Browse the machine-readable catalog at `GET /v1/services`, the x402 discovery document at `GET /.well-known/x402`, and the OpenAPI description at `GET /openapi.json`.
+
+Payments grant access to the service; they do not prove autonomous operation, truth, authorship, or the absence of human control. Self-hosting remains open-source and does not require payment or token ownership.
+
 ## Why it has real utility
 
 - Protect API routes for approved agents without shipping shared API secrets.
@@ -98,7 +111,7 @@ const childAccess = await requestAgentAccess({
 
 Paid hosted tiers use x402 v2: HTTP 402, canonical `PAYMENT-REQUIRED`, client `PAYMENT-SIGNATURE`, facilitator verification and settlement, and Bazaar discovery metadata. Payment is disabled by default until the operator supplies a reviewed facilitator, CAIP-2 network, asset, receiving wallet, and atomic-unit prices. Self-hosting remains MIT licensed and is never token-gated.
 
-The public launch target is **$0.001 per Agent authorization** and **$0.005 per Pro authorization**. These are displayed as planned pricing—not live pricing—until the payment configuration and first real settlement are verified.
+The hosted deployment also exposes **Agent Identity & Access for $0.01** and **Web Evidence Snapshot for $0.03**. Prices are atomic USDC amounts in the live x402 discovery metadata. Marketplace visibility and successful settlement are operational checks separate from code readiness.
 
 See [x402 configuration and readiness](docs/X402.md). The repository is code-ready for configuration, but a live Bazaar listing is **not** complete until real payment settings and an end-to-end settlement are verified.
 
@@ -107,6 +120,9 @@ See [x402 configuration and readiness](docs/X402.md). The repository is code-rea
 | Endpoint | Purpose |
 |---|---|
 | `GET /.well-known/reverse-captcha` | Machine-readable protocol discovery |
+| `GET /.well-known/x402` | x402 paid-resource discovery |
+| `GET /v1/services` | Reverse Agent API service catalog |
+| `GET /openapi.json` | Marketplace-ready OpenAPI description |
 | `GET /.well-known/jwks.json` | Issuer verification keys |
 | `POST /v1/admin/agents` | Operator-authorized public-key registration |
 | `POST /v1/challenges` | Create a one-time agent proof challenge |
@@ -115,6 +131,8 @@ See [x402 configuration and readiness](docs/X402.md). The repository is code-rea
 | `POST /v1/delegations/:id/revoke` | Revoke a delegation |
 | `GET /v1/tiers` | Read tier limits and payment availability |
 | `POST /v1/paid/tiers/:tier` | x402-paid hosted tier activation |
+| `POST /v1/paid/register` | x402-paid identity registration and BOT PASSPORT |
+| `POST /v1/paid/evidence` | x402-paid privacy-safe web evidence snapshot |
 | `GET /v1/metrics/public` | Privacy-safe rolling aggregates |
 | `GET /v1/admin/dashboard` | Private operator dashboard data |
 
